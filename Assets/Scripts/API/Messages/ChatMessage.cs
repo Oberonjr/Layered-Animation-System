@@ -14,11 +14,10 @@ public class ChatMessage : MonoBehaviour
     [SerializeField] private float speakerHeight = 25f;
     [SerializeField] private float spacing = 5f;
 
-    [Header("Color Settings")]
+    [Header("Default Color Settings")]
     [SerializeField] private Color playerColor = new Color(0.3f, 0.5f, 0.8f);
-    [SerializeField] private Color npcAColor = new Color(0.5f, 0.8f, 0.5f);
-    [SerializeField] private Color npcBColor = new Color(0.8f, 0.5f, 0.5f);
     [SerializeField] private Color systemColor = new Color(0.6f, 0.6f, 0.6f);
+    [SerializeField] private float npcColorGrayAmount = 0.3f; // How much to gray out NPC colors for messages
 
     [HideInInspector] public string speaker;
     [HideInInspector] public string message;
@@ -53,6 +52,26 @@ public class ChatMessage : MonoBehaviour
         }
 
         SetColorByType(messageType);
+        UpdateSize();
+    }
+
+    public void InitializeWithColor(string speakerName, string messageContent, MessageType messageType, Color npcColor)
+    {
+        speaker = speakerName;
+        message = messageContent;
+        type = messageType;
+
+        if (speakerText != null)
+        {
+            speakerText.text = speakerName + ":";
+        }
+
+        if (messageText != null)
+        {
+            messageText.text = messageContent;
+        }
+
+        SetColorDirect(npcColor);
         UpdateSize();
     }
 
@@ -122,17 +141,34 @@ public class ChatMessage : MonoBehaviour
             case MessageType.Player:
                 color = playerColor;
                 break;
-            case MessageType.NPCA:
-                color = npcAColor;
-                break;
-            case MessageType.NPCB:
-                color = npcBColor;
-                break;
             case MessageType.System:
                 color = systemColor;
+                break;
+            default:
+                // For NPC types, this shouldn't be called - use InitializeWithColor instead
+                color = new Color(0.7f, 0.7f, 0.7f);
                 break;
         }
 
         backgroundImage.color = color;
     }
+
+    private void SetColorDirect(Color baseColor)
+    {
+        if (backgroundImage == null)
+            return;
+
+        // Make the message background more gray/muted than the capsule highlight
+        Color messageColor = Color.Lerp(baseColor, Color.gray, npcColorGrayAmount);
+        messageColor.a = 0.8f; // Slight transparency
+        
+        backgroundImage.color = messageColor;
+    }
+}
+
+public enum MessageType
+{
+    Player,
+    NPC,
+    System
 }

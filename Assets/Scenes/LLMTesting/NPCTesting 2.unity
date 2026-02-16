@@ -723,20 +723,26 @@ MonoBehaviour:
   m_GameObject: {fileID: 403859194}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b85ffb4c2bfd7c24989b51aec6bda236, type: 3}
+  m_Script: {fileID: 11500000, guid: c02e77fe1f5bca1478aeff20f6168db9, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::NPCConversationManager
-  npcA: {fileID: 1894651080}
-  npcB: {fileID: 565452783}
+  m_EditorClassIdentifier: Assembly-CSharp::NPCManager
   playerInputField: {fileID: 115755051}
   sendButton: {fileID: 145538544}
   chatContentParent: {fileID: 180983893}
   chatMessagePrefab: {fileID: 238049159449196339, guid: 71a8a0d4b0fe71f4589622fe40677343, type: 3}
-  scenarioConfigFile: {fileID: 4900000, guid: f9fd4bc103704a540a933edb52261754, type: 3}
+  scenarioConfigFile: {fileID: 4900000, guid: 5eef4bb26cd827d4fb3792758560e459, type: 3}
   baseUrl: 
   availableModels: []
   selectedModelIndex: 0
-  contextHistoryLimit: 15
+  temperature: 0.7
+  topP: 0.9
+  topK: 40
+  maxTokensPerMessage: 450
+  repeatPenalty: 1.25
+  contextHistoryLimit: 50
+  includeProgressionContext: 1
+  currentProgressionStep: 0
+  registeredNPCs: []
 --- !u!1 &449925200
 GameObject:
   m_ObjectHideFlags: 0
@@ -909,7 +915,7 @@ GameObject:
   - component: {fileID: 565452784}
   - component: {fileID: 565452783}
   m_Layer: 0
-  m_Name: NPC_B
+  m_Name: NPC_Doctor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -927,14 +933,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec8e483e2c0b8844497bf28c22918d1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
-  npcName: Bob
-  characterId: nurse
-  characterDescription: A wise and thoughtful scholar who enjoys deep conversations.
-  messageType: 2
+  npcName: 
+  characterRole: 
+  characterDescription: 
   capsuleRenderer: {fileID: 565452785}
+  highlightColor: {r: 0, g: 0, b: 1, a: 1}
   normalColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  speakingColor: {r: 1, g: 0, b: 0, a: 1}
   pulseSpeed: 2
+  assignedIndex: -1
 --- !u!136 &565452784
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -2100,7 +2106,7 @@ GameObject:
   - component: {fileID: 1894651081}
   - component: {fileID: 1894651080}
   m_Layer: 0
-  m_Name: NPC_A
+  m_Name: NPC_Nurse
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2118,14 +2124,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec8e483e2c0b8844497bf28c22918d1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
-  npcName: Alice
-  characterId: surgeon
-  characterDescription: A curious and friendly explorer who loves asking questions.
-  messageType: 1
+  npcName: 
+  characterRole: 
+  characterDescription: 
   capsuleRenderer: {fileID: 1894651082}
+  highlightColor: {r: 0, g: 1, b: 1, a: 1}
   normalColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  speakingColor: {r: 0, g: 1, b: 0, a: 1}
   pulseSpeed: 2
+  assignedIndex: -1
 --- !u!136 &1894651081
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -2356,6 +2362,6 @@ SceneRoots:
   - {fileID: 1631696797}
   - {fileID: 1204233552}
   - {fileID: 259497445}
-  - {fileID: 1894651084}
   - {fileID: 565452787}
+  - {fileID: 1894651084}
   - {fileID: 403859196}
