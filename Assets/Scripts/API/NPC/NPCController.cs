@@ -4,16 +4,17 @@ public class NPCController : MonoBehaviour
 {
     [Header("NPC Identity")]
     public string npcName = "NPC";
+    public string characterId = "npc"; // Used to match with scenario config
     [TextArea(3, 6)]
     public string characterDescription = "A helpful character.";
     public MessageType messageType = MessageType.NPCA;
-    
+
     [Header("Visual Indicator")]
     [SerializeField] private Renderer capsuleRenderer;
     [SerializeField] private Color normalColor = Color.gray;
     [SerializeField] private Color speakingColor = Color.green;
     [SerializeField] private float pulseSpeed = 2f;
-    
+
     private bool isSpeaking = false;
     private Material material;
     private Color targetColor;
@@ -25,7 +26,7 @@ public class NPCController : MonoBehaviour
         {
             capsuleRenderer = GetComponent<Renderer>();
         }
-        
+
         if (capsuleRenderer != null)
         {
             material = capsuleRenderer.material;
@@ -38,10 +39,10 @@ public class NPCController : MonoBehaviour
     {
         if (material == null)
             return;
-            
+
         // Smooth color transition
         material.color = Color.Lerp(material.color, targetColor, Time.deltaTime * 5f);
-        
+
         // Pulse effect when speaking
         if (isSpeaking)
         {
