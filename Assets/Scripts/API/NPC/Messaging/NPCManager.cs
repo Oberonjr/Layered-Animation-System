@@ -15,52 +15,53 @@ public class NPCManager : MonoBehaviour
     [SerializeField] private Button sendButton;
     [SerializeField] private Transform chatContentParent;
     [SerializeField] private GameObject chatMessagePrefab;
-
+    
     [Header("Scenario Configuration")]
     [SerializeField] private TextAsset scenarioConfigFile;
-
+    
     [Header("Ollama Connection")]
     [SerializeField] private string baseUrl = "";
     [SerializeField] private List<string> availableModels = new List<string>();
     [SerializeField] private int selectedModelIndex = 0;
-
+    
     [Header("AI Parameters")]
-    [SerializeField][Range(0.1f, 2.0f)] private float temperature = 0.7f;
-    [SerializeField][Range(0.1f, 1.0f)] private float topP = 0.9f;
-    [SerializeField][Range(1f, 100f)] private float topK = 40f;
+    [SerializeField] [Range(0.1f, 2.0f)] private float temperature = 0.7f;
+    [SerializeField] [Range(0.1f, 1.0f)] private float topP = 0.9f;
+    [SerializeField] [Range(1f, 100f)] private float topK = 40f;
     [SerializeField] private int maxTokensPerMessage = 150;
-    [SerializeField][Range(1.0f, 2.0f)] private float repeatPenalty = 1.1f;
-
+    [SerializeField] [Range(1.0f, 2.0f)] private float repeatPenalty = 1.1f;
+    
     [Header("Streaming Settings")]
     [SerializeField] private bool enableSimulatedStreaming = true;
-    [SerializeField][Range(10f, 200f)] private float charactersPerSecond = 50f;
+    [SerializeField] [Range(10f, 200f)] private float charactersPerSecond = 50f;
     [SerializeField] private bool adaptiveStreaming = true; // Adjusts speed based on generation time
-
+    
     [Header("Context Management")]
     [SerializeField] private int contextHistoryLimit = 15;
     [SerializeField] private bool includeProgressionContext = true;
-
+    
     [Header("Runtime Info")]
     [SerializeField] private int currentProgressionStep = 0;
     [SerializeField] private List<NPCController> registeredNPCs = new List<NPCController>();
-
+    
     private ConversationFlowController flowController;
+    private NPCActionDispatcher actionDispatcher;
     private ScenarioConfig scenarioConfig;
     private List<ChatMessage> conversationHistory = new List<ChatMessage>();
     private bool isProcessing = false;
     private const int DEFAULT_PORT = 11434;
 
-    public string SelectedModel => selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count
-        ? availableModels[selectedModelIndex]
+    public string SelectedModel => selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count 
+        ? availableModels[selectedModelIndex] 
         : "";
-
+    
     public bool IsProcessing => isProcessing;
 
     // Public accessors for ConversationFlowController
     public TMP_InputField GetPlayerInputField() => playerInputField;
     public int GetRegisteredNPCCount() => registeredNPCs.Count;
     public NPCController GetNPCByIndex(int index) => index >= 0 && index < registeredNPCs.Count ? registeredNPCs[index] : null;
-    public List<ChatMessage> GetRecentMessages(int count)
+    public List<ChatMessage> GetRecentMessages(int count) 
     {
         int startIndex = Mathf.Max(0, conversationHistory.Count - count);
         return conversationHistory.GetRange(startIndex, conversationHistory.Count - startIndex);
@@ -88,17 +89,18 @@ public class NPCManager : MonoBehaviour
     public void Initialize()
     {
         flowController = GetComponent<ConversationFlowController>();
-
+        actionDispatcher = NPCActionDispatcher.Instance;
+        
         if (sendButton != null)
         {
             sendButton.onClick.AddListener(OnPlayerSendMessage);
         }
-
+        
         if (playerInputField != null)
         {
             playerInputField.onSubmit.AddListener(delegate { OnPlayerSendMessage(); });
         }
-
+        
         StartCoroutine(InitializeSystem());
     }
 
@@ -109,7 +111,7 @@ public class NPCManager : MonoBehaviour
             int index = registeredNPCs.Count;
             registeredNPCs.Add(npc);
             npc.AssignIndex(index);
-
+            
             Debug.Log($"NPC registered at index {index}: {npc.gameObject.name}");
         }
     }
@@ -132,7 +134,7 @@ public class NPCManager : MonoBehaviour
     {
         // Wait a frame for all NPCs to register
         yield return null;
-
+        
         // Load scenario configuration
         if (scenarioConfigFile != null)
         {
@@ -140,7 +142,7 @@ public class NPCManager : MonoBehaviour
             {
                 scenarioConfig = JsonUtility.FromJson<ScenarioConfig>(scenarioConfigFile.text);
                 Debug.Log($"Loaded scenario: {scenarioConfig.scenario.title}");
-
+                
                 // Validate we have enough NPCs
                 if (scenarioConfig.characters.Length > registeredNPCs.Count)
                 {
@@ -148,7 +150,7 @@ public class NPCManager : MonoBehaviour
                     AddSystemMessage($"ERROR: Not enough NPCs! Need {scenarioConfig.characters.Length}, have {registeredNPCs.Count}");
                     yield break;
                 }
-
+                
                 // Assign character data to NPCs based on index
                 for (int i = 0; i < scenarioConfig.characters.Length; i++)
                 {
@@ -156,7 +158,7 @@ public class NPCManager : MonoBehaviour
                     {
                         CharacterInfo character = scenarioConfig.characters[i];
                         NPCController npc = registeredNPCs[i];
-
+                        
                         npc.AssignCharacterData(
                             character.name,
                             character.role,
@@ -172,22 +174,22 @@ public class NPCManager : MonoBehaviour
                 yield break;
             }
         }
-
+        
         // Detect Ollama
         yield return DetectOllamaSettings();
-
+        
         // Add initial scenario messages
         if (scenarioConfig != null)
         {
             AddSystemMessage($"=== {scenarioConfig.scenario.title} ===");
             AddSystemMessage(scenarioConfig.scenario.description);
-
+            
             if (scenarioConfig.player_character != null)
             {
                 AddSystemMessage($"Your Role: {scenarioConfig.player_character.role}");
                 AddSystemMessage(scenarioConfig.player_character.description);
             }
-
+            
             // Initialize conversation with first NPC
             if (scenarioConfig.conversation_initialization != null)
             {
@@ -220,7 +222,7 @@ public class NPCManager : MonoBehaviour
         };
 
         bool found = false;
-
+        
         foreach (string url in possibleUrls)
         {
             using (UnityWebRequest www = UnityWebRequest.Get(url + "/api/tags"))
@@ -232,11 +234,11 @@ public class NPCManager : MonoBehaviour
                 {
                     baseUrl = url;
                     found = true;
-
+                    
                     try
                     {
                         OllamaTagsResponse tagsResponse = JsonUtility.FromJson<OllamaTagsResponse>(www.downloadHandler.text);
-
+                        
                         if (tagsResponse.models != null && tagsResponse.models.Length > 0)
                         {
                             availableModels.Clear();
@@ -244,12 +246,12 @@ public class NPCManager : MonoBehaviour
                             {
                                 availableModels.Add(model.name);
                             }
-
+                            
                             selectedModelIndex = 0;
-
+                            
                             Debug.Log($"Ollama detected at {baseUrl}");
                             Debug.Log($"Selected model: {SelectedModel}");
-
+                            
                             AddSystemMessage($"Connected - Using: {SelectedModel}");
                         }
                     }
@@ -257,7 +259,7 @@ public class NPCManager : MonoBehaviour
                     {
                         Debug.LogError("Failed to parse models: " + e.Message);
                     }
-
+                    
                     break;
                 }
             }
@@ -267,7 +269,7 @@ public class NPCManager : MonoBehaviour
         {
             Debug.LogError("Could not detect Ollama. Make sure it's running with 'ollama serve'");
             AddSystemMessage("ERROR: Ollama not detected! Run 'ollama serve'");
-
+            
             if (sendButton != null)
             {
                 sendButton.interactable = false;
@@ -279,7 +281,7 @@ public class NPCManager : MonoBehaviour
     {
         if (scenarioConfig.conversation_initialization == null)
             yield break;
-
+            
         yield return GetNPCResponse(
             scenarioConfig.conversation_initialization.opening_prompt,
             scenarioConfig.conversation_initialization.first_speaker_index
@@ -293,10 +295,10 @@ public class NPCManager : MonoBehaviour
 
         string message = playerInputField.text;
         playerInputField.text = "";
-
+        
         AddChatMessage("Player", message, MessageType.Player);
         NPCEventBus.BroadcastPlayerMessage(message);
-
+        
         StartCoroutine(GetNPCResponse(message, -1));
     }
 
@@ -304,15 +306,15 @@ public class NPCManager : MonoBehaviour
     {
         if (isProcessing)
             return;
-
+            
         StartCoroutine(NPCConversationRoutine());
     }
-
+    
     public void TriggerNPCPromptForPlayer()
     {
         if (isProcessing)
             return;
-
+            
         StartCoroutine(NPCPromptPlayerRoutine());
     }
 
@@ -321,7 +323,7 @@ public class NPCManager : MonoBehaviour
         string prompt = "Continue the teaching session naturally. Address the next aspect of preparation, ask a follow-up question, or respond to what was just said.";
         yield return GetNPCResponse(prompt, -1);
     }
-
+    
     private IEnumerator NPCPromptPlayerRoutine()
     {
         string prompt = "The student has been quiet for a while. One of you should check in with them, ask if they have questions, or prompt them to participate.";
@@ -337,14 +339,14 @@ public class NPCManager : MonoBehaviour
         }
 
         isProcessing = true;
-
+        
         string prompt = BuildStructuredPrompt(userInput, specificNPCIndex);
-
+        
         ChatMessage tempMessage = null;
         NPCController currentSpeaker = null;
         StringBuilder fullResponse = new StringBuilder();
         float generationStartTime = Time.time;
-
+        
         OllamaRequest requestData = new OllamaRequest
         {
             model = SelectedModel,
@@ -362,20 +364,20 @@ public class NPCManager : MonoBehaviour
 
         string jsonData = JsonUtility.ToJson(requestData);
         string url = baseUrl + "/api/generate";
-
+        
         using (UnityWebRequest www = new UnityWebRequest(url, "POST"))
         {
             byte[] bodyRaw = Encoding.UTF8.GetBytes(jsonData);
             www.uploadHandler = new UploadHandlerRaw(bodyRaw);
-
+            
             StreamingDownloadHandler downloadHandler = new StreamingDownloadHandler();
             www.downloadHandler = downloadHandler;
-
+            
             www.SetRequestHeader("Content-Type", "application/json");
             www.timeout = 0;
 
             var operation = www.SendWebRequest();
-
+            
             // Collect all streaming data without displaying yet
             while (!operation.isDone)
             {
@@ -383,13 +385,13 @@ public class NPCManager : MonoBehaviour
                 {
                     string newText = downloadHandler.GetNewText();
                     string[] lines = newText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
+                    
                     foreach (string line in lines)
                     {
                         try
                         {
                             OllamaStreamResponse streamResponse = JsonUtility.FromJson<OllamaStreamResponse>(line);
-
+                            
                             if (!string.IsNullOrEmpty(streamResponse.response))
                             {
                                 fullResponse.Append(streamResponse.response);
@@ -398,16 +400,16 @@ public class NPCManager : MonoBehaviour
                         catch { }
                     }
                 }
-
+                
                 yield return null;
             }
-
+            
             // Final processing
             if (downloadHandler.HasNewData())
             {
                 string newText = downloadHandler.GetNewText();
                 string[] lines = newText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
+                
                 foreach (string line in lines)
                 {
                     try
@@ -428,7 +430,7 @@ public class NPCManager : MonoBehaviour
             // Parse final response
             string finalText = fullResponse.ToString();
             NPCResponse finalResponse = null;
-
+            
             try
             {
                 int startIndex = finalText.IndexOf('{');
@@ -437,27 +439,40 @@ public class NPCManager : MonoBehaviour
                 {
                     string jsonPart = finalText.Substring(startIndex, endIndex - startIndex);
                     finalResponse = JsonUtility.FromJson<NPCResponse>(jsonPart);
-
+                    
                     // Identify speaker
                     if (finalResponse.npc_index >= 0 && finalResponse.npc_index < registeredNPCs.Count)
                     {
                         currentSpeaker = registeredNPCs[finalResponse.npc_index];
                         currentSpeaker.SetSpeaking(true);
-
+                        
                         // Create message with empty text
                         tempMessage = AddChatMessage(
-                            currentSpeaker.npcName,
-                            "",
+                            currentSpeaker.npcName, 
+                            "", 
                             MessageType.NPC,
                             currentSpeaker
                         );
-
+                        
                         NPCEventBus.BroadcastNPCStartedSpeaking(finalResponse.npc_index, "");
-
-                        // Log action if present
-                        if (!string.IsNullOrEmpty(finalResponse.action))
+                        
+                        // Dispatch action to behaviour system
+                        if (!string.IsNullOrEmpty(finalResponse.action_key) && finalResponse.action_key != "NONE")
                         {
-                            Debug.Log($"[{currentSpeaker.npcName}] Action: {finalResponse.action}");
+                            if (actionDispatcher == null)
+                                actionDispatcher = NPCActionDispatcher.Instance;
+                                
+                            if (actionDispatcher != null)
+                            {
+                                var command = new NPCActionCommand
+                                {
+                                    npc_index              = finalResponse.npc_index,
+                                    action_key             = finalResponse.action_key,
+                                    action_target          = finalResponse.action_target,
+                                    action_secondary_target = finalResponse.action_secondary_target
+                                };
+                                actionDispatcher.Dispatch(command, registeredNPCs);
+                            }
                         }
                     }
                 }
@@ -466,7 +481,7 @@ public class NPCManager : MonoBehaviour
             {
                 Debug.LogError($"Failed to parse final response: {e.Message}");
                 Debug.LogError($"Response was: {finalText}");
-
+                
                 AddSystemMessage("[Error: Could not parse NPC response]");
             }
 
@@ -489,7 +504,7 @@ public class NPCManager : MonoBehaviour
                 if (enableSimulatedStreaming)
                 {
                     float streamSpeed = charactersPerSecond;
-
+                    
                     // Adaptive streaming: if generation was slow, stream faster to maintain flow
                     if (adaptiveStreaming)
                     {
@@ -505,7 +520,7 @@ public class NPCManager : MonoBehaviour
                             streamSpeed *= 0.7f;
                         }
                     }
-
+                    
                     yield return StartCoroutine(StreamTextToMessage(tempMessage, finalResponse.dialogue, streamSpeed));
                 }
                 else
@@ -521,7 +536,7 @@ public class NPCManager : MonoBehaviour
             currentSpeaker.SetSpeaking(false);
             NPCEventBus.BroadcastNPCFinishedSpeaking(currentSpeaker.AssignedIndex);
         }
-
+        
         isProcessing = false;
     }
 
@@ -529,20 +544,20 @@ public class NPCManager : MonoBehaviour
     {
         if (message == null || string.IsNullOrEmpty(fullText))
             yield break;
-
+        
         float charDelay = 1f / charsPerSecond;
         StringBuilder currentText = new StringBuilder();
-
+        
         // Stream character by character
         for (int i = 0; i < fullText.Length; i++)
         {
             currentText.Append(fullText[i]);
             message.UpdateText(currentText.ToString());
-
+            
             // Variable delay based on punctuation for more natural feel
             char currentChar = fullText[i];
             float delay = charDelay;
-
+            
             if (currentChar == '.' || currentChar == '!' || currentChar == '?')
             {
                 delay *= 3f; // Longer pause after sentence endings
@@ -555,7 +570,7 @@ public class NPCManager : MonoBehaviour
             {
                 delay *= 0.5f; // Shorter pause for spaces
             }
-
+            
             yield return new WaitForSeconds(delay);
         }
     }
@@ -563,7 +578,7 @@ public class NPCManager : MonoBehaviour
     private string BuildStructuredPrompt(string currentInput, int specificNPCIndex)
     {
         StringBuilder prompt = new StringBuilder();
-
+        
         // Scenario context
         if (scenarioConfig != null)
         {
@@ -575,7 +590,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"Context: {scenarioConfig.conversation_initialization.context}");
             }
             prompt.AppendLine();
-
+            
             // Player context
             if (scenarioConfig.player_character != null)
             {
@@ -584,7 +599,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"Description: {scenarioConfig.player_character.description}");
                 prompt.AppendLine();
             }
-
+            
             // System instructions - CORE RULES
             prompt.AppendLine("=== CORE RULES (FOLLOW STRICTLY) ===");
             foreach (var rule in scenarioConfig.system_instructions.core_rules)
@@ -592,7 +607,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"• {rule}");
             }
             prompt.AppendLine();
-
+            
             // Characters
             prompt.AppendLine("=== CHARACTERS (BY INDEX) ===");
             for (int i = 0; i < scenarioConfig.characters.Length && i < registeredNPCs.Count; i++)
@@ -605,7 +620,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"  Current: {character.current_state}");
             }
             prompt.AppendLine();
-
+            
             // Progression steps if enabled
             if (includeProgressionContext && scenarioConfig.required_progression_steps != null)
             {
@@ -614,7 +629,7 @@ public class NPCManager : MonoBehaviour
                 for (int i = 0; i < scenarioConfig.required_progression_steps.Length; i++)
                 {
                     var step = scenarioConfig.required_progression_steps[i];
-                    string status = i < currentProgressionStep ? "[COMPLETED]" :
+                    string status = i < currentProgressionStep ? "[COMPLETED]" : 
                                    i == currentProgressionStep ? "[CURRENT]" : "[UPCOMING]";
                     prompt.AppendLine($"{status} Step {step.step_id}: {step.title}");
                     if (i == currentProgressionStep)
@@ -626,7 +641,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine();
             }
         }
-
+        
         // Recent conversation history
         if (conversationHistory.Count > 0)
         {
@@ -639,12 +654,12 @@ public class NPCManager : MonoBehaviour
             }
             prompt.AppendLine();
         }
-
+        
         // Current input
         prompt.AppendLine("=== CURRENT INPUT ===");
         prompt.AppendLine(currentInput);
         prompt.AppendLine();
-
+        
         // Response format instructions
         if (scenarioConfig != null)
         {
@@ -654,7 +669,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"• {rule}");
             }
             prompt.AppendLine();
-
+            
             // CRITICAL: Prevent self-conversation
             prompt.AppendLine("=== CRITICAL RULES ===");
             prompt.AppendLine("• If YOU just asked a question, WAIT for someone else to answer");
@@ -662,7 +677,7 @@ public class NPCManager : MonoBehaviour
             prompt.AppendLine("• NEVER have multiple exchanges by yourself");
             prompt.AppendLine("• After you speak, someone else should respond next");
             prompt.AppendLine();
-
+            
             // Interaction guidelines
             prompt.AppendLine("=== INTERACTION GUIDELINES ===");
             foreach (var guideline in scenarioConfig.system_instructions.interaction_guidelines)
@@ -670,7 +685,7 @@ public class NPCManager : MonoBehaviour
                 prompt.AppendLine($"• {guideline}");
             }
             prompt.AppendLine();
-
+            
             // Teaching behavior
             if (scenarioConfig.system_instructions.teaching_behavior != null)
             {
@@ -681,12 +696,24 @@ public class NPCManager : MonoBehaviour
                 }
                 prompt.AppendLine();
             }
-
+            
             prompt.AppendLine("Example response format:");
             prompt.AppendLine(JsonUtility.ToJson(scenarioConfig.example_response_format, true));
             prompt.AppendLine();
         }
-
+        
+        // Action vocabulary (auto-built from dispatcher's action definitions)
+        if (actionDispatcher == null)
+            actionDispatcher = NPCActionDispatcher.Instance;
+        if (actionDispatcher != null)
+        {
+            string vocab = actionDispatcher.BuildActionVocabularyPrompt();
+            if (!string.IsNullOrEmpty(vocab))
+            {
+                prompt.AppendLine(vocab);
+            }
+        }
+        
         // Specific NPC instruction
         if (specificNPCIndex >= 0 && specificNPCIndex < registeredNPCs.Count)
         {
@@ -699,10 +726,10 @@ public class NPCManager : MonoBehaviour
             prompt.AppendLine("Based on the context and who was addressed, decide which NPC should respond.");
             prompt.AppendLine("If the Player addressed a specific person, THAT person must respond.");
         }
-
+        
         prompt.AppendLine();
         prompt.AppendLine("Respond NOW in valid JSON format (no extra text):");
-
+        
         return prompt.ToString();
     }
 
@@ -715,9 +742,9 @@ public class NPCManager : MonoBehaviour
         }
 
         GameObject messageObj = Instantiate(chatMessagePrefab, chatContentParent, false);
-
+        
         ChatMessage chatMessage = messageObj.GetComponent<ChatMessage>();
-
+        
         if (chatMessage != null)
         {
             // Use color from NPC if provided
@@ -729,13 +756,13 @@ public class NPCManager : MonoBehaviour
             {
                 chatMessage.Initialize(speaker, message, type);
             }
-
+            
             conversationHistory.Add(chatMessage);
         }
-
+        
         Canvas.ForceUpdateCanvases();
         StartCoroutine(ScrollToBottom());
-
+        
         return chatMessage;
     }
 
@@ -747,7 +774,7 @@ public class NPCManager : MonoBehaviour
     private IEnumerator ScrollToBottom()
     {
         yield return new WaitForEndOfFrame();
-
+        
         ScrollRect scrollRect = chatContentParent.GetComponentInParent<ScrollRect>();
         if (scrollRect != null)
         {

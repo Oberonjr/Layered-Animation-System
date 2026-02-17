@@ -52,9 +52,10 @@ public class OllamaModelInfo
 [Serializable]
 public class NPCResponse
 {
-    public int npc_index; // Index instead of character_id
+    public int npc_index;
     public string dialogue;
-    public string action;
+    public string action_key;              // e.g. "PICK_UP", "GO_TO", "NONE"
+    public string action_target;           // primary target name from registry
+    public string action_secondary_target; // for two-party actions
     public string internal_thought;
 }
-

@@ -66,7 +66,9 @@ public class ResponseFormatExample
 {
     public int npc_index;
     public string dialogue;
-    public string action;
+    public string action_key;
+    public string action_target;
+    public string action_secondary_target;
     public string internal_thought;
 }
 
