@@ -44,6 +44,7 @@ public class NPCManager : MonoBehaviour
     [SerializeField] private int currentProgressionStep = 0;
     [SerializeField] private List<NPCController> registeredNPCs = new List<NPCController>();
 
+    private ConversationFlowController flowController;
     private ScenarioConfig scenarioConfig;
     private List<ChatMessage> conversationHistory = new List<ChatMessage>();
     private bool isProcessing = false;
@@ -52,6 +53,18 @@ public class NPCManager : MonoBehaviour
     public string SelectedModel => selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count
         ? availableModels[selectedModelIndex]
         : "";
+
+    public bool IsProcessing => isProcessing;
+
+    // Public accessors for ConversationFlowController
+    public TMP_InputField GetPlayerInputField() => playerInputField;
+    public int GetRegisteredNPCCount() => registeredNPCs.Count;
+    public NPCController GetNPCByIndex(int index) => index >= 0 && index < registeredNPCs.Count ? registeredNPCs[index] : null;
+    public List<ChatMessage> GetRecentMessages(int count)
+    {
+        int startIndex = Mathf.Max(0, conversationHistory.Count - count);
+        return conversationHistory.GetRange(startIndex, conversationHistory.Count - startIndex);
+    }
 
     void OnEnable()
     {
@@ -74,6 +87,8 @@ public class NPCManager : MonoBehaviour
 
     public void Initialize()
     {
+        flowController = GetComponent<ConversationFlowController>();
+
         if (sendButton != null)
         {
             sendButton.onClick.AddListener(OnPlayerSendMessage);
@@ -293,15 +308,24 @@ public class NPCManager : MonoBehaviour
         StartCoroutine(NPCConversationRoutine());
     }
 
+    public void TriggerNPCPromptForPlayer()
+    {
+        if (isProcessing)
+            return;
+
+        StartCoroutine(NPCPromptPlayerRoutine());
+    }
+
     private IEnumerator NPCConversationRoutine()
     {
-        string prompt = "Continue the teaching session. Address the next aspect of preparation that needs to be covered.";
+        string prompt = "Continue the teaching session naturally. Address the next aspect of preparation, ask a follow-up question, or respond to what was just said.";
         yield return GetNPCResponse(prompt, -1);
+    }
 
-        yield return new WaitForSeconds(1.5f);
-
-        string followUp = "Respond naturally to what was just said or demonstrated.";
-        yield return GetNPCResponse(followUp, -1);
+    private IEnumerator NPCPromptPlayerRoutine()
+    {
+        string prompt = "The student has been quiet for a while. One of you should check in with them, ask if they have questions, or prompt them to participate.";
+        yield return GetNPCResponse(prompt, -1);
     }
 
     private IEnumerator GetNPCResponse(string userInput, int specificNPCIndex)
@@ -629,6 +653,14 @@ public class NPCManager : MonoBehaviour
             {
                 prompt.AppendLine($"• {rule}");
             }
+            prompt.AppendLine();
+
+            // CRITICAL: Prevent self-conversation
+            prompt.AppendLine("=== CRITICAL RULES ===");
+            prompt.AppendLine("• If YOU just asked a question, WAIT for someone else to answer");
+            prompt.AppendLine("• NEVER answer your own questions");
+            prompt.AppendLine("• NEVER have multiple exchanges by yourself");
+            prompt.AppendLine("• After you speak, someone else should respond next");
             prompt.AppendLine();
 
             // Interaction guidelines

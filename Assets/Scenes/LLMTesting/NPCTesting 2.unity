@@ -692,6 +692,7 @@ GameObject:
   m_Component:
   - component: {fileID: 403859196}
   - component: {fileID: 403859197}
+  - component: {fileID: 403859198}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -746,6 +747,30 @@ MonoBehaviour:
   includeProgressionContext: 1
   currentProgressionStep: 0
   registeredNPCs: []
+--- !u!114 &403859198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 403859194}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c62fb567290b3a41b51a6fe4b651739, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ConversationFlowController
+  enableAutoConversation: 1
+  npcFollowUpProbability: 0.55
+  maxConsecutiveNPCMessages: 3
+  minTimeBetweenNPCMessages: 7
+  maxTimeBetweenNPCMessages: 15
+  inputMode: 0
+  playerIdleTimeBeforePrompt: 40
+  typingDetectionDelay: 0.5
+  useContextualDecisions: 1
+  questionResponseProbability: 0.9
+  directAddressProbability: 0.95
+  showDebugLogs: 1
 --- !u!1 &449925200
 GameObject:
   m_ObjectHideFlags: 0
