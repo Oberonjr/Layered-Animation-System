@@ -14,8 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: LOOK_AT_PLAYER
   displayName: Look at player
-  llmDescription: Look at the player
+  llmDescription: Turn to face and look at the medical student. Usde when directly
+    addressing them, asking them a question, or reacting to something they said
   requiresTarget: 0
   requiresSecondaryTarget: 0
   targetDescription: 
   secondaryTargetDescription: 
+  validTargetTypes: 01000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

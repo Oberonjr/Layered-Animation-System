@@ -14,9 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: REQUEST_FROM
   displayName: Request from
-  llmDescription: Request from another NPC or the Player for an item to be handed
-    to this NPC
+  llmDescription: Face and gesture towards another person to signal you want the
+    object they are holding. Use when asking a colleague to hand something over before
+    goint to retrieve it.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: The character that should offer the requested item
+  targetDescription: The name of the NPC or player to request the object from. Must
+    be one of the valid target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 0000000001000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

@@ -165,10 +165,3 @@ public class ChatMessage : MonoBehaviour
         backgroundImage.color = messageColor;
     }
 }
-
-public enum MessageType
-{
-    Player,
-    NPC,
-    System
-}

@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: RETURN_TO_IDLE
   displayName: Return to idle
-  llmDescription: 'Return to idle pose and state. '
+  llmDescription: Return to your idle standing position and stop current activity.
+    Use when finishing na task, stepping back, or when directed to stop and wait.
   requiresTarget: 0
   requiresSecondaryTarget: 0
   targetDescription: 

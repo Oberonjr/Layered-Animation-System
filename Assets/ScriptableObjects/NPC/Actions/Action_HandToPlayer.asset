@@ -14,9 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: HAND_TO_PLAYER
   displayName: Hand to player
-  llmDescription: Hand the item currently held by this NPC to the Player, holding
-    the object until the Player grabs it
+  llmDescription: Hold out the currently held object towards the student for them
+    to take. Use when giving the student an item to examine or use. Only use if currently
+    holding an object.
   requiresTarget: 0
   requiresSecondaryTarget: 0
   targetDescription: 
   secondaryTargetDescription: 
+  validTargetTypes: 01000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

@@ -4,29 +4,21 @@ using UnityEngine;
 using UnityEngine.Events;
 
 /// <summary>
-/// Scene-level dispatcher. Receives a parsed NPCActionCommand from NPCManager,
-/// resolves the NPC and target, then routes directly to ActionBridge methods.
-/// The SerializedDictionary maps action keys to ActionBridge method names,
-/// avoiding the inspector serialization issue with generic UnityEvents.
+/// Routes LLM action commands to execution.
+/// Dictionary maps ActionDefinition ScriptableObject → UnityEvent wired to ActionBridge method.
+/// The SO's actionKey field is used for LLM lookup, but the SO itself is the dictionary key.
 /// </summary>
 public class NPCActionDispatcher : MonoBehaviour
 {
     public static NPCActionDispatcher Instance { get; private set; }
 
-    [Header("Action Bridge")]
-    [Tooltip("The ActionBridge component that executes actions on NPCs.")]
-    public ActionBridge actionBridge;
+    [Header("Action Handlers")]
+    [Tooltip("Map ActionDefinition assets to ActionBridge methods. Wire the UnityEvent to the appropriate Execute* method.")]
+    [SerializedDictionary("Action Definition", "Execution Method")]
+    public SerializedDictionary<NPCActionDefinition, NPCActionCallback> actionHandlers
+        = new SerializedDictionary<NPCActionDefinition, NPCActionCallback>();
 
-    [Header("Action Key → Method Name")]
-    [Tooltip("Maps action key (e.g. 'PICK_UP') to ActionBridge method name (e.g. 'ExecutePickUp'). " +
-             "Method names must exactly match public methods on ActionBridge.")]
-    [SerializedDictionary("Action Key", "Bridge Method Name")]
-    public SerializedDictionary<string, string> actionHandlers
-        = new SerializedDictionary<string, string>();
-
-    [Header("Action Definitions (for prompt injection)")]
-    [Tooltip("All NPCActionDefinition assets. Used to auto-build the LLM action vocabulary.")]
-    public List<NPCActionDefinition> actionDefinitions = new List<NPCActionDefinition>();
+    private Dictionary<string, NPCActionDefinition> keyLookup; // action_key → definition
 
     void Awake()
     {
@@ -38,14 +30,30 @@ public class NPCActionDispatcher : MonoBehaviour
         }
         Instance = this;
 
-        if (actionBridge == null)
-            actionBridge = GetComponent<ActionBridge>();
+        BuildKeyLookup();
     }
 
-    /// <summary>
-    /// Called by NPCManager after parsing an LLM response.
-    /// Routes the action to the correct NPC via ActionBridge.
-    /// </summary>
+    private void BuildKeyLookup()
+    {
+        keyLookup = new Dictionary<string, NPCActionDefinition>();
+
+        foreach (var kvp in actionHandlers)
+        {
+            if (kvp.Key == null) continue;
+
+            string key = kvp.Key.actionKey;
+            if (keyLookup.ContainsKey(key))
+            {
+                Debug.LogWarning($"[Dispatcher] Duplicate action key '{key}' - only first will be used.");
+                continue;
+            }
+
+            keyLookup[key] = kvp.Key;
+        }
+
+        Debug.Log($"[Dispatcher] Registered {keyLookup.Count} actions.");
+    }
+
     public void Dispatch(NPCActionCommand command, List<NPCController> registeredNPCs)
     {
         if (command == null || string.IsNullOrEmpty(command.action_key) || command.action_key == "NONE")
@@ -66,6 +74,21 @@ public class NPCActionDispatcher : MonoBehaviour
             return;
         }
 
+        // Look up ActionDefinition by action_key
+        if (!keyLookup.TryGetValue(command.action_key, out NPCActionDefinition actionDef))
+        {
+            Debug.LogWarning($"[Dispatcher] No action definition for key: '{command.action_key}'");
+            return;
+        }
+
+        // Look up the wired callback
+        if (!actionHandlers.TryGetValue(actionDef, out NPCActionCallback callback))
+        {
+            Debug.LogWarning($"[Dispatcher] No callback wired for action: '{actionDef.displayName}'");
+            return;
+        }
+
+        // Resolve targets
         Transform primaryTarget = string.IsNullOrEmpty(command.action_target)
             ? null
             : NPCActionTargetRegistry.Instance?.Resolve(command.action_target);
@@ -74,35 +97,34 @@ public class NPCActionDispatcher : MonoBehaviour
             ? null
             : NPCActionTargetRegistry.Instance?.Resolve(command.action_secondary_target);
 
-        if (!actionHandlers.TryGetValue(command.action_key, out string methodName))
-        {
-            Debug.LogWarning($"[Dispatcher] No handler registered for action key: '{command.action_key}'");
-            return;
-        }
-
-        Debug.Log($"[Dispatcher] {npcCtrl.npcName} → {command.action_key}" +
+        Debug.Log($"[Dispatcher] {npcCtrl.npcName} → {actionDef.displayName}" +
                   $"{(primaryTarget != null ? $" → {primaryTarget.name}" : "")}");
 
-        actionBridge.Execute(methodName, behaviour, primaryTarget, secondaryTarget);
+        // Invoke the callback (wired to ActionBridge method)
+        callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
     }
 
-    /// <summary>
-    /// Direct dispatch from the Inspector (Editor test buttons on NPCBehaviourController).
-    /// </summary>
-    public void DispatchDirect(string actionKey, NPCBehaviourController behaviour,
+    public void DispatchDirect(NPCActionDefinition actionDef, NPCBehaviourController behaviour,
                                 Transform primaryTarget, Transform secondaryTarget)
     {
-        if (!actionHandlers.TryGetValue(actionKey, out string methodName))
+        if (actionDef == null || behaviour == null)
         {
-            Debug.LogWarning($"[Dispatcher] No handler for '{actionKey}'");
+            Debug.LogWarning("[Dispatcher] DispatchDirect: null action or behaviour.");
             return;
         }
-        actionBridge.Execute(methodName, behaviour, primaryTarget, secondaryTarget);
+
+        if (!actionHandlers.TryGetValue(actionDef, out NPCActionCallback callback))
+        {
+            Debug.LogWarning($"[Dispatcher] No callback wired for action: '{actionDef.displayName}'");
+            return;
+        }
+
+        callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
     }
 
     public string BuildActionVocabularyPrompt()
     {
-        if (actionDefinitions == null || actionDefinitions.Count == 0)
+        if (actionHandlers == null || actionHandlers.Count == 0)
             return "";
 
         var sb = new System.Text.StringBuilder();
@@ -110,9 +132,11 @@ public class NPCActionDispatcher : MonoBehaviour
         sb.AppendLine("You MAY include one action per response. Use EXACTLY these action_key values:");
         sb.AppendLine();
 
-        foreach (var def in actionDefinitions)
+        foreach (var kvp in actionHandlers)
         {
-            if (def == null) continue;
+            if (kvp.Key == null) continue;
+
+            var def = kvp.Key;
             sb.AppendLine($"  action_key: \"{def.actionKey}\"");
             sb.AppendLine($"  → {def.llmDescription}");
             if (def.requiresTarget)
@@ -133,5 +157,12 @@ public class NPCActionDispatcher : MonoBehaviour
         sb.AppendLine();
         sb.AppendLine("If no physical action is needed, use action_key: \"NONE\".");
         return sb.ToString();
+    }
+
+    public IEnumerable<NPCActionDefinition> GetActiveActions()
+    {
+        foreach (var kvp in actionHandlers)
+            if (kvp.Key != null)
+                yield return kvp.Key;
     }
 }

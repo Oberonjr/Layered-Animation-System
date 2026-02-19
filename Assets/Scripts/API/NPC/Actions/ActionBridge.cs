@@ -1,104 +1,96 @@
 using UnityEngine;
-using System.Reflection;
-using System.Collections.Generic;
 
 /// <summary>
-/// Executes NPC actions by method name via reflection.
-/// Called by NPCActionDispatcher.Execute(methodName, ...).
-/// All public Execute* methods are valid dispatch targets.
+/// Singleton bridge that NPCActionDefinition callbacks target.
+/// Each action's UnityEvent in the ScriptableObject calls a method here,
+/// and this bridge receives the runtime targets from the dispatcher and forwards them.
+/// 
+/// Wire in ScriptableObject:
+///   Action Definition → Execution → callback → ActionBridge.ExecutePickUp (or whatever method)
+/// 
+/// At runtime:
+///   Dispatcher calls: actionDef.callback.Invoke(npc, primaryTarget, secondaryTarget)
+///   → UnityEvent fires → calls ExecutePickUp(npc, primaryTarget, secondaryTarget)
+///   → This bridge forwards to npc.PickUp(primaryTarget)
 /// </summary>
 public class ActionBridge : MonoBehaviour
 {
-    private Dictionary<string, MethodInfo> methodCache;
+    public static ActionBridge Instance { get; private set; }
 
     void Awake()
     {
-        // Cache all Execute* methods on this class for fast lookup
-        methodCache = new Dictionary<string, MethodInfo>();
-        var methods = GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
-        foreach (var m in methods)
+        if (Instance != null && Instance != this)
         {
-            if (m.Name.StartsWith("Execute"))
-                methodCache[m.Name] = m;
-        }
-        Debug.Log($"[ActionBridge] Cached {methodCache.Count} execute methods.");
-    }
-
-    /// <summary>
-    /// Called by NPCActionDispatcher. Looks up the method by name and invokes it.
-    /// </summary>
-    public void Execute(string methodName, NPCBehaviourController npc, Transform primary, Transform secondary)
-    {
-        if (string.IsNullOrEmpty(methodName))
-        {
-            Debug.LogWarning("[ActionBridge] Execute called with empty method name.");
+            Destroy(gameObject);
             return;
         }
-
-        if (methodCache == null) Awake();
-
-        if (!methodCache.TryGetValue(methodName, out MethodInfo method))
-        {
-            Debug.LogWarning($"[ActionBridge] No method named '{methodName}'. " +
-                             $"Available: {string.Join(", ", methodCache.Keys)}");
-            return;
-        }
-
-        method.Invoke(this, new object[] { npc, primary, secondary });
+        Instance = this;
     }
 
-    // ─── Action Implementations ───────────────────────────────────────────────
+    // ────────────────────────────────────────────────────────────────────────
+    // These methods are called by UnityEvents wired in ActionDefinition assets.
+    // The dispatcher invokes the UnityEvent with (npc, primary, secondary).
+    // ────────────────────────────────────────────────────────────────────────
 
     public void ExecuteLookAtPlayer(NPCBehaviourController npc, Transform _, Transform __)
-        => npc.LookAtPlayer();
+    {
+        if (npc == null) return;
+        npc.LookAtPlayer();
+    }
 
     public void ExecuteLookAt(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("LOOK_AT"); return; }
+        if (npc == null || target == null) return;
         npc.LookAt(target);
     }
 
     public void ExecuteGoTo(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("GO_TO"); return; }
+        if (npc == null || target == null) return;
         npc.GoTo(target);
     }
 
     public void ExecutePickUp(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("PICK_UP"); return; }
+        if (npc == null || target == null) return;
         npc.PickUp(target);
     }
 
     public void ExecuteHandToPlayer(NPCBehaviourController npc, Transform _, Transform __)
-        => npc.HandToPlayer();
+    {
+        if (npc == null) return;
+        npc.HandToPlayer();
+    }
 
     public void ExecuteHandToNPC(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("HAND_TO_NPC"); return; }
-        var tb = target.GetComponent<NPCBehaviourController>();
-        if (tb != null) npc.HandToNPC(tb);
-        else Debug.LogWarning($"[ActionBridge] '{target.name}' has no NPCBehaviourController.");
+        if (npc == null || target == null) return;
+        var targetBehaviour = target.GetComponent<NPCBehaviourController>();
+        if (targetBehaviour != null)
+            npc.HandToNPC(targetBehaviour);
+        else
+            Debug.LogWarning($"[ActionBridge] HandToNPC: '{target.name}' has no NPCBehaviourController.");
     }
 
     public void ExecuteGrabFrom(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("GRAB_FROM"); return; }
-        var tb = target.GetComponent<NPCBehaviourController>();
-        if (tb != null) npc.GrabFrom(tb);
-        else Debug.LogWarning($"[ActionBridge] '{target.name}' has no NPCBehaviourController.");
+        if (npc == null || target == null) return;
+        var targetBehaviour = target.GetComponent<NPCBehaviourController>();
+        if (targetBehaviour != null)
+            npc.GrabFrom(targetBehaviour);
+        else
+            Debug.LogWarning($"[ActionBridge] GrabFrom: '{target.name}' has no NPCBehaviourController.");
     }
 
     public void ExecuteRequestFrom(NPCBehaviourController npc, Transform target, Transform _)
     {
-        if (target == null) { LogMissingTarget("REQUEST_FROM"); return; }
+        if (npc == null || target == null) return;
         npc.RequestFrom(target);
     }
 
     public void ExecuteReturnToIdle(NPCBehaviourController npc, Transform _, Transform __)
-        => npc.ReturnToIdle();
-
-    private void LogMissingTarget(string actionKey)
-        => Debug.LogWarning($"[ActionBridge] {actionKey}: target is null. " +
-                            $"Check target name matches NPCActionTargetRegistry.");
+    {
+        if (npc == null) return;
+        npc.ReturnToIdle();
+    }
 }

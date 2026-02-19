@@ -59,3 +59,18 @@ public class NPCResponse
     public string action_secondary_target; // for two-party actions
     public string internal_thought;
 }
+
+public enum MessageType
+{
+    Player,
+    NPC,
+    System
+}
+
+/// <summary>
+/// Serializable UnityEvent for NPC action execution.
+/// Passes: acting NPC behaviour, primary target, secondary target.
+/// Used as the VALUE in NPCActionDispatcher's dictionary.
+/// </summary>
+[System.Serializable]
+public class NPCActionCallback : UnityEngine.Events.UnityEvent<NPCBehaviourController, UnityEngine.Transform, UnityEngine.Transform> { }

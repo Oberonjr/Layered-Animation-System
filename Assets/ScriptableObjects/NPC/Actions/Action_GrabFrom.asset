@@ -14,9 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: GRAB_FROM
   displayName: Grab from
-  llmDescription: Grab an item that's being handed to this NPC by either another
-    NPC or by the Player
+  llmDescription: Walk to another person and take the object they are currently holding.
+    Use when retrieving an item from a colleague.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: The object that's being handed to this NPC
+  targetDescription: The name of the NPC to take the objecty from. Must be one of
+    the valid target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 0000000001000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

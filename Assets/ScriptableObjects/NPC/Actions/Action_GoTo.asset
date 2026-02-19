@@ -14,8 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: GO_TO
   displayName: Go To Location/Object
-  llmDescription: Move to the target location
+  llmDescription: Walk to a specific location or object in the room. Use when you
+    need to move to an area to begin a task, demonstrate something, or position yourself.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: Where the NPC should move to
+  targetDescription: The name of the location or object to walk to. Must be one of
+    the valid target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 00000000010000000200000003000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}

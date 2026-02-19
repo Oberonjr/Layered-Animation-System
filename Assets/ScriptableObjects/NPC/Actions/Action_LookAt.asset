@@ -14,8 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: LOOK_AT
   displayName: Look at
-  llmDescription: Look at a specific thing, object, character or location
+  llmDescription: Turn to look at a specific object, location, or person in the room.
+    Use when drawing attention to something or checking on it.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: Object/place/character this NPC should be looking at
+  targetDescription: The name of the object, location, or person to look at. Must
+    be one of the valid target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 00000000010000000200000003000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

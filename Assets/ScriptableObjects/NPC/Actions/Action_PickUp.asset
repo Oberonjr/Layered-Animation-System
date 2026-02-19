@@ -14,9 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: PICK_UP
   displayName: Pick up
-  llmDescription: 'Pick up an object that''s not being held, used or on another character''s
-    person. '
+  llmDescription: Walk to and pick up a physical object, then hold it. Use when retrieving
+    an instrument, chart, or item to use or show to someone.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: The object that needs to be picked up
+  targetDescription: The name of the object to pick up. Must be one of the valid
+    target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 03000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []

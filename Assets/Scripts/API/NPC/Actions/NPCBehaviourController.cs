@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
@@ -14,7 +15,7 @@ public class NPCBehaviourController : MonoBehaviour
     [Header("Item Slot")]
     [Tooltip("The transform where held objects are attached (e.g. right hand bone or empty child).")]
     [SerializeField] private Transform itemSlot;
-    
+
     [Header("Look Settings")]
     [SerializeField] private float lookRotationSpeed = 5f;
     [SerializeField] private float lookStopAngleThreshold = 2f;
@@ -56,11 +57,23 @@ public class NPCBehaviourController : MonoBehaviour
     public void LookAtPlayer()
     {
         var registry = NPCActionTargetRegistry.Instance;
-        Transform playerTransform = registry?.Resolve("Player");
-        if (playerTransform != null)
-            LookAt(playerTransform);
-        else
-            Debug.LogWarning($"[{npcController.npcName}] LookAtPlayer: 'Player' not in registry.");
+        if (registry == null) return;
+
+        // Get all Player-type targets
+        var players = registry.GetTargetsByType(TargetType.Player).ToList();
+
+        if (players.Count == 0)
+        {
+            Debug.LogWarning($"[{npcController.npcName}] LookAtPlayer: No Player found in registry.");
+            return;
+        }
+
+        if (players.Count > 1)
+        {
+            Debug.LogWarning($"[{npcController.npcName}] LookAtPlayer: Multiple Players registered ({players.Count}). Using first one: '{players[0].TargetName}'");
+        }
+
+        LookAt(players[0].Transform);
     }
 
     public void LookAt(Transform target)

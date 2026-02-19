@@ -14,8 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
   actionKey: HAND_TO_NPC
   displayName: Hand to NPC
-  llmDescription: Hand the item this NPC is currently holding to target NPC
+  llmDescription: Walk to another team member and hand them the currently held object.
+    Use when passing instruments or items between staff. Only use if currently holding
+    an object.
   requiresTarget: 1
   requiresSecondaryTarget: 0
-  targetDescription: The NPC that needs to be given the currently held item
+  targetDescription: The name of the NPC to hand the object to. Must be one of the
+    valid target names listed below.
   secondaryTargetDescription: 
+  validTargetTypes: 00000000
+  editorColor: {r: 1, g: 1, b: 1, a: 1}
+  callback:
+    m_PersistentCalls:
+      m_Calls: []
