@@ -7,19 +7,32 @@ using UnityEngine.Events;
 /// Routes LLM action commands to execution.
 /// Dictionary maps ActionDefinition ScriptableObject → UnityEvent wired to ActionBridge method.
 /// The SO's actionKey field is used for LLM lookup, but the SO itself is the dictionary key.
+/// This is the central routing hub for all NPC actions in the system.
 /// </summary>
 public class NPCActionDispatcher : MonoBehaviour
 {
+    /// <summary>
+    /// Singleton instance of the NPCActionDispatcher, accessible from anywhere in the code.
+    /// Used by NPCManager to dispatch actions from LLM responses.
+    /// </summary>
     public static NPCActionDispatcher Instance { get; private set; }
 
     [Header("Action Handlers")]
-    [Tooltip("Map ActionDefinition assets to ActionBridge methods. Wire the UnityEvent to the appropriate Execute* method.")]
+    [Tooltip("Map ActionDefinition assets to ActionBridge methods. Wire the UnityEvent to the appropriate Execute* method in the Inspector. Each entry connects an action definition (what the LLM can request) to the code that executes it.")]
     [SerializedDictionary("Action Definition", "Execution Method")]
     public SerializedDictionary<NPCActionDefinition, NPCActionCallback> actionHandlers
         = new SerializedDictionary<NPCActionDefinition, NPCActionCallback>();
 
+    /// <summary>
+    /// Internal lookup dictionary mapping action_key strings (from LLM) to NPCActionDefinition objects.
+    /// Built during Awake() from the actionHandlers dictionary.
+    /// </summary>
     private Dictionary<string, NPCActionDefinition> keyLookup; // action_key → definition
 
+    /// <summary>
+    /// Initializes the singleton instance and builds the action key lookup table.
+    /// Ensures only one dispatcher exists in the scene.
+    /// </summary>
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -33,6 +46,11 @@ public class NPCActionDispatcher : MonoBehaviour
         BuildKeyLookup();
     }
 
+    /// <summary>
+    /// Builds the keyLookup dictionary from actionHandlers.
+    /// Maps each action's unique action_key (e.g., "PICK_UP") to its ActionDefinition object.
+    /// Warns if duplicate action keys are found (only the first will be used).
+    /// </summary>
     private void BuildKeyLookup()
     {
         keyLookup = new Dictionary<string, NPCActionDefinition>();
@@ -54,6 +72,13 @@ public class NPCActionDispatcher : MonoBehaviour
         Debug.Log($"[Dispatcher] Registered {keyLookup.Count} actions.");
     }
 
+    /// <summary>
+    /// Main dispatch method called by NPCManager when an LLM response contains an action.
+    /// Looks up the action by key, resolves the target NPC and any target transforms,
+    /// then invokes the appropriate callback to execute the action.
+    /// </summary>
+    /// <param name="command">The parsed action command from the LLM response.</param>
+    /// <param name="registeredNPCs">The list of all registered NPCs in the scene.</param>
     public void Dispatch(NPCActionCommand command, List<NPCController> registeredNPCs)
     {
         if (command == null || string.IsNullOrEmpty(command.action_key) || command.action_key == "NONE")
@@ -104,6 +129,15 @@ public class NPCActionDispatcher : MonoBehaviour
         callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
     }
 
+    /// <summary>
+    /// Direct dispatch method for editor testing or manual action triggering.
+    /// Bypasses LLM and action key lookup - directly executes an action on an NPC.
+    /// Used primarily by the custom editor (NPCBehaviourControllerEditor) for testing actions in Play mode.
+    /// </summary>
+    /// <param name="actionDef">The action definition to execute.</param>
+    /// <param name="behaviour">The NPC that should perform the action.</param>
+    /// <param name="primaryTarget">The primary target transform (can be null if action doesn't require it).</param>
+    /// <param name="secondaryTarget">The secondary target transform (can be null if action doesn't require it).</param>
     public void DispatchDirect(NPCActionDefinition actionDef, NPCBehaviourController behaviour,
                                 Transform primaryTarget, Transform secondaryTarget)
     {
@@ -122,6 +156,13 @@ public class NPCActionDispatcher : MonoBehaviour
         callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
     }
 
+    /// <summary>
+    /// Generates a formatted string describing all available actions for inclusion in the LLM prompt.
+    /// This "vocabulary" tells the LLM what actions it can command NPCs to perform,
+    /// including descriptions, required parameters, and valid target names.
+    /// Called by NPCManager when building the system prompt for the conversation.
+    /// </summary>
+    /// <returns>A formatted string listing all actions, their keys, descriptions, and parameters.</returns>
     public string BuildActionVocabularyPrompt()
     {
         if (actionHandlers == null || actionHandlers.Count == 0)
@@ -159,6 +200,11 @@ public class NPCActionDispatcher : MonoBehaviour
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Returns all active action definitions registered in the dispatcher.
+    /// Used by the editor UI to populate action selection dropdowns and buttons.
+    /// </summary>
+    /// <returns>An enumerable of all non-null action definitions in actionHandlers.</returns>
     public IEnumerable<NPCActionDefinition> GetActiveActions()
     {
         foreach (var kvp in actionHandlers)

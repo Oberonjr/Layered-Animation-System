@@ -3,25 +3,41 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.Linq;
 
+/// <summary>
+/// Custom Unity Editor for NPCBehaviourController.
+/// Provides two testing strategies in Play mode:
+/// 1. Action First: Select an action, then choose compatible targets
+/// 2. Target First: Select a target, then see compatible actions as buttons
+/// Allows rapid testing and debugging of NPC actions without LLM interaction.
+/// </summary>
 [CustomEditor(typeof(NPCBehaviourController))]
 public class NPCBehaviourControllerEditor : Editor
 {
+    // Selected items for Action First strategy
     private IActionTarget selectedPrimaryTarget;
     private IActionTarget selectedSecondaryTarget;
     private NPCActionDefinition selectedAction;
 
+    // Cached lists of available options
     private List<IActionTarget> availablePrimaryTargets = new List<IActionTarget>();
     private List<IActionTarget> availableSecondaryTargets = new List<IActionTarget>();
     private List<NPCActionDefinition> availableActions = new List<NPCActionDefinition>();
 
+    // Dropdown indices for selection persistence
     private int primaryTargetIndex = 0;
     private int secondaryTargetIndex = 0;
     private int actionIndex = 0;
 
     // Testing strategy selection
+    /// <summary>Determines which workflow to display in the inspector.</summary>
     private enum TestingStrategy { ActionFirst, TargetFirst }
     private TestingStrategy currentStrategy = TestingStrategy.ActionFirst;
 
+    /// <summary>
+    /// Renders the custom inspector GUI.
+    /// Shows default inspector first, then Play mode testing UI if in Play mode.
+    /// Auto-repaints during Play mode for live status updates.
+    /// </summary>
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
@@ -66,6 +82,12 @@ public class NPCBehaviourControllerEditor : Editor
             Repaint();
     }
 
+    /// <summary>
+    /// Refreshes the cached lists of available targets and actions from the registries.
+    /// Filters out the NPC itself from target lists and clamps selection indices.
+    /// Called every frame in OnInspectorGUI to keep UI in sync with runtime changes.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController being inspected.</param>
     private void RefreshAvailableOptions(NPCBehaviourController behaviour)
     {
         var registry = NPCActionTargetRegistry.Instance;
@@ -107,6 +129,12 @@ public class NPCBehaviourControllerEditor : Editor
     // STRATEGY 1: ACTION FIRST
     // ═══════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Draws the "Action First" workflow UI.
+    /// User selects an action from dropdown, then compatible targets are shown.
+    /// Includes quick test buttons for the selected action with all compatible targets.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController being tested.</param>
     private void DrawActionFirstStrategy(NPCBehaviourController behaviour)
     {
         DrawSeparator("Action → Target");
@@ -138,11 +166,15 @@ public class NPCBehaviourControllerEditor : Editor
         if (selectedAction != null && selectedAction.requiresTarget && selectedPrimaryTarget != null)
         {
             DrawSeparator($"Quick Test: {selectedAction.displayName}");
-            DrawQuickActionButtonsForAction(behaviour);
-        }
-    }
+                DrawQuickActionButtonsForAction(behaviour);
+                }
+            }
 
-    private void DrawFilteredTargetDropdown()
+            /// <summary>
+            /// Draws a target dropdown filtered by the selected action's valid target types.
+            /// Only shows targets that are compatible with the current action.
+            /// </summary>
+            private void DrawFilteredTargetDropdown()
     {
         if (availablePrimaryTargets.Count == 0)
         {
@@ -174,6 +206,12 @@ public class NPCBehaviourControllerEditor : Editor
     // STRATEGY 2: TARGET FIRST
     // ═══════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Draws the "Target First" workflow UI.
+    /// User selects a target from dropdown, then compatible actions are shown as clickable buttons.
+    /// Provides a quick way to test all actions that can be performed on a specific target.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController being tested.</param>
     private void DrawTargetFirstStrategy(NPCBehaviourController behaviour)
     {
         DrawSeparator("Target → Actions");
@@ -192,6 +230,10 @@ public class NPCBehaviourControllerEditor : Editor
         }
     }
 
+    /// <summary>
+    /// Draws a dropdown showing all available targets (not filtered by action compatibility).
+    /// Used in Target First strategy.
+    /// </summary>
     private void DrawAllTargetsDropdown()
     {
         if (availablePrimaryTargets.Count == 0)
@@ -205,6 +247,12 @@ public class NPCBehaviourControllerEditor : Editor
         selectedPrimaryTarget = availablePrimaryTargets[primaryTargetIndex];
     }
 
+    /// <summary>
+    /// Draws action buttons filtered by compatibility with the selected target.
+    /// Shows target-specific actions and general no-target actions.
+    /// Clicking a button immediately executes that action on the NPC.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController to execute actions on.</param>
     private void DrawCompatibleActionButtons(NPCBehaviourController behaviour)
     {
         if (availableActions.Count == 0)
@@ -288,6 +336,10 @@ public class NPCBehaviourControllerEditor : Editor
     // SHARED UI COMPONENTS
     // ═══════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// Draws a dropdown to select an action from all registered actions.
+    /// Used in Action First strategy.
+    /// </summary>
     private void DrawActionDropdown()
     {
         if (availableActions.Count == 0)
@@ -301,6 +353,10 @@ public class NPCBehaviourControllerEditor : Editor
         selectedAction = availableActions[actionIndex];
     }
 
+    /// <summary>
+    /// Draws a dropdown for selecting a secondary target.
+    /// Only shown for actions that require a secondary target (rare).
+    /// </summary>
     private void DrawSecondaryTargetDropdown()
     {
         if (availableSecondaryTargets.Count == 0) return;
@@ -310,6 +366,11 @@ public class NPCBehaviourControllerEditor : Editor
         selectedSecondaryTarget = availableSecondaryTargets[secondaryTargetIndex];
     }
 
+    /// <summary>
+    /// Draws the main execute button that triggers the selected action with selected targets.
+    /// Button color matches the action's editorColor for visual consistency.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController to execute the action on.</param>
     private void DrawExecuteButton(NPCBehaviourController behaviour)
     {
         if (selectedAction == null)
@@ -330,6 +391,11 @@ public class NPCBehaviourControllerEditor : Editor
         GUI.backgroundColor = Color.white;
     }
 
+    /// <summary>
+    /// Draws quick test buttons showing compatible targets for the selected action.
+    /// Limited to 6 targets for UI space. Clicking executes the action on that target immediately.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController to execute actions on.</param>
     private void DrawQuickActionButtonsForAction(NPCBehaviourController behaviour)
     {
         // Show quick test buttons for the selected action with all compatible targets
@@ -372,6 +438,12 @@ public class NPCBehaviourControllerEditor : Editor
         GUI.backgroundColor = Color.white;
     }
 
+    /// <summary>
+    /// Displays runtime status information about the NPC's current state.
+    /// Shows: IsMoving, IsHoldingObject, IsOffering, HeldObject name.
+    /// Uses rich text for colored yes/no values.
+    /// </summary>
+    /// <param name="behaviour">The NPCBehaviourController whose status to display.</param>
     private void DrawStatusDisplay(NPCBehaviourController behaviour)
     {
         var statusStyle = new GUIStyle(EditorStyles.label) { richText = true };
@@ -382,12 +454,22 @@ public class NPCBehaviourControllerEditor : Editor
         EditorGUILayout.LabelField($"<b>Held Object:</b> {(behaviour.HeldObject != null ? behaviour.HeldObject.name : "—")}", statusStyle);
     }
 
+    /// <summary>
+    /// Draws a labeled separator line for organizing UI sections.
+    /// </summary>
+    /// <param name="label">The text to display in the separator.</param>
     private void DrawSeparator(string label)
     {
         EditorGUILayout.Space(4);
         EditorGUILayout.LabelField($"── {label} ────────────", EditorStyles.boldLabel);
     }
 
+    /// <summary>
+    /// Formats a boolean value as colored rich text.
+    /// True = green "Yes", False = grey "No".
+    /// </summary>
+    /// <param name="value">The boolean to format.</param>
+    /// <returns>Formatted rich text string.</returns>
     private string FormatBool(bool value)
         => value ? "<color=green>Yes</color>" : "<color=grey>No</color>";
 }
