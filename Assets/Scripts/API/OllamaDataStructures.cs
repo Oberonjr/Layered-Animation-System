@@ -129,6 +129,24 @@ public class NPCResponse
 }
 
 /// <summary>
+/// Action-only response from the second LLM classification step.
+/// Contains only the physical action fields — no dialogue or identity fields.
+/// Parsed from the action classification prompt (Step 2 of the two-step LLM pipeline).
+/// </summary>
+[Serializable]
+public class NPCActionOnly
+{
+    /// <summary>The action to perform. Must match an NPCActionDefinition.actionKey, or "NONE".</summary>
+    public string action_key;
+
+    /// <summary>Primary target name from registry. Empty if the action requires no target.</summary>
+    public string action_target;
+
+    /// <summary>Secondary target name for two-party actions (e.g. hand object from one NPC to another).</summary>
+    public string action_secondary_target;
+}
+
+/// <summary>
 /// Enum defining the type of chat message for UI display formatting.
 /// </summary>
 public enum MessageType

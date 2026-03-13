@@ -993,7 +993,7 @@ MonoBehaviour:
   sendButton: {fileID: 145538544}
   chatContentParent: {fileID: 180983893}
   chatMessagePrefab: {fileID: 238049159449196339, guid: 71a8a0d4b0fe71f4589622fe40677343, type: 3}
-  scenarioConfigFile: {fileID: 4900000, guid: 0417f127674e917449e19f34cd12b4d1, type: 3}
+  scenarioConfigFile: {fileID: 4900000, guid: d5b642fe5df12ab49a19da5fcca7e8c1, type: 3}
   baseUrl: 
   availableModels: []
   selectedModelIndex: 0
@@ -1002,6 +1002,9 @@ MonoBehaviour:
   topK: 40
   maxTokensPerMessage: 450
   repeatPenalty: 1.25
+  actionTemperature: 0.1
+  actionTopK: 10
+  actionMaxTokens: 80
   enableSimulatedStreaming: 1
   charactersPerSecond: 20
   adaptiveStreaming: 1
@@ -1009,6 +1012,9 @@ MonoBehaviour:
   includeProgressionContext: 1
   currentProgressionStep: 0
   registeredNPCs: []
+  showDetailedDebug: 1
+  logPrompts: 1
+  logLLMResponses: 1
 --- !u!114 &403859198
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1458,7 +1464,9 @@ MonoBehaviour:
   lookRotationSpeed: 5
   lookStopAngleThreshold: 2
   arrivalDistance: 0.5
+  goToTimeoutSeconds: 15
   idlePosition: {fileID: 1772655547}
+  playerHandoffMode: 0
   offerOffset: {x: 0, y: 1, z: 0.6}
 --- !u!195 &565452789
 NavMeshAgent:
@@ -3822,7 +3830,9 @@ MonoBehaviour:
   lookRotationSpeed: 5
   lookStopAngleThreshold: 2
   arrivalDistance: 0.5
+  goToTimeoutSeconds: 15
   idlePosition: {fileID: 1239620000}
+  playerHandoffMode: 0
   offerOffset: {x: 0, y: 1, z: 0.6}
 --- !u!195 &1894651086
 NavMeshAgent:

@@ -2,7 +2,19 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using System.Collections.Generic;
 using System;
+
+/// <summary>
+/// Determines how the NPC transfers a held object to the player.
+/// </summary>
+public enum HandoffMode
+{
+    /// <summary>NPC walks to the player and holds the object out at offerOffset, waiting for TakeOfferedObject().</summary>
+    OfferForPickup,
+    /// <summary>NPC walks to the player and directly parents the object to the player's transform.</summary>
+    DirectTransfer
+}
 
 /// <summary>
 /// Per-NPC component. Handles all physical behaviour: movement, looking, 
@@ -27,10 +39,16 @@ public class NPCBehaviourController : MonoBehaviour
     [Tooltip("The distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters).")]
     [SerializeField] private float arrivalDistance = 0.5f;
 
+    [Tooltip("Maximum seconds the NPC will try to navigate before giving up. Prevents infinite loops if the NavMesh agent stalls (B8 fix).")]
+    [SerializeField] private float goToTimeoutSeconds = 15f;
+
     [Tooltip("The transform representing this NPC's idle/home position. NPC will return here when ReturnToIdle is called. Leave null if no specific idle position is needed.")]
     [SerializeField] private Transform idlePosition; // Where to return when idle
 
     [Header("Hand-to-Player Settings")]
+    [Tooltip("OfferForPickup: walk to player, hold object at offerOffset, wait for TakeOfferedObject(). DirectTransfer: walk to player and parent object directly to their transform.")]
+    [SerializeField] public HandoffMode playerHandoffMode = HandoffMode.OfferForPickup;
+
     [Tooltip("Local offset from NPC position to hold object out toward player (in meters). Typically forward and up from the NPC center.")]
     [SerializeField] private Vector3 offerOffset = new Vector3(0f, 1f, 0.6f);
 
@@ -49,6 +67,12 @@ public class NPCBehaviourController : MonoBehaviour
 
     /// <summary>Whether this NPC is currently offering an object to the player (holding it out).</summary>
     private bool isOffering = false; // Holding object out for player
+
+    /// <summary>Queue of behaviour coroutines for multi-step action sequences (e.g. PICK_UP → HAND_TO_PLAYER).</summary>
+    private Queue<IEnumerator> behaviourQueue = new Queue<IEnumerator>();
+
+    /// <summary>The currently running action queue coroutine, or null if not executing a queue.</summary>
+    private Coroutine queueCoroutine;
 
     // Events other systems can listen to
     /// <summary>Fired when the NPC arrives at a navigation target. Parameters: (this NPC, target transform).</summary>
@@ -71,6 +95,9 @@ public class NPCBehaviourController : MonoBehaviour
 
     /// <summary>Returns true if this NPC is currently offering an object to the player (holding it out for them to take).</summary>
     public bool IsOffering => isOffering;
+
+    /// <summary>Returns true if this NPC is currently executing a multi-step action queue.</summary>
+    public bool IsExecutingQueue => queueCoroutine != null;
 
     /// <summary>Returns true if this NPC is currently moving (has an active navigation path and hasn't reached the destination yet).</summary>
     public bool IsMoving => agent != null && agent.hasPath && agent.remainingDistance > arrivalDistance;
@@ -243,9 +270,18 @@ public class NPCBehaviourController : MonoBehaviour
     private IEnumerator GoToRoutine(Transform target)
     {
         agent.SetDestination(target.position);
+        float startTime = Time.time;
 
         while (true)
         {
+            // Timeout guard: prevents infinite loop if the NavMesh agent stalls permanently.
+            if (Time.time - startTime > goToTimeoutSeconds)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] GoTo timed out after {goToTimeoutSeconds}s navigating to '{target.name}'.");
+                agent.ResetPath();
+                yield break;
+            }
+
             if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
             {
                 agent.ResetPath();
@@ -320,20 +356,46 @@ public class NPCBehaviourController : MonoBehaviour
     {
         isOffering = true;
 
-        // Move held object to offer position
-        if (heldObject != null && itemSlot != null)
+        // Walk to the player and face them before handing over the object.
+        var registry = NPCActionTargetRegistry.Instance;
+        var players = registry?.GetTargetsByType(TargetType.Player).ToList();
+        Transform playerTransform = (players != null && players.Count > 0) ? players[0].Transform : null;
+
+        if (playerTransform != null)
         {
-            heldObject.transform.localPosition = offerOffset;
+            yield return GoToRoutine(playerTransform);
+            yield return LookAtRoutine(playerTransform);
         }
 
-        // Wait for player to take it (detected externally via TakeOfferedObject)
-        // or for the behaviour to be cancelled
-        while (isOffering && heldObject != null)
+        if (playerHandoffMode == HandoffMode.DirectTransfer)
         {
-            yield return null;
+            // Parent the object directly to the player's transform.
+            if (heldObject != null && playerTransform != null)
+            {
+                heldObject.transform.SetParent(playerTransform);
+                heldObject.transform.localPosition = Vector3.zero;
+                Rigidbody rb = heldObject.GetComponent<Rigidbody>();
+                if (rb != null) rb.isKinematic = false;
+                OnHandedObject?.Invoke(this, heldObject);
+                heldObject = null;
+            }
+            isOffering = false;
         }
+        else // OfferForPickup (default)
+        {
+            // Move held object to the offer position and wait for the player to take it.
+            if (heldObject != null && itemSlot != null)
+            {
+                heldObject.transform.localPosition = offerOffset;
+            }
 
-        isOffering = false;
+            while (isOffering && heldObject != null)
+            {
+                yield return null;
+            }
+
+            isOffering = false;
+        }
     }
 
     /// <summary>
@@ -425,14 +487,128 @@ public class NPCBehaviourController : MonoBehaviour
 
     /// <summary>
     /// Stops the current behavior coroutine (if any) and starts a new one.
-    /// Ensures only one behavior runs at a time.
+    /// Also cancels any running action queue to ensure clean state.
     /// </summary>
     /// <param name="newBehaviour">The new behavior coroutine to start.</param>
     private void SwitchBehaviour(IEnumerator newBehaviour)
     {
+        if (queueCoroutine != null)
+        {
+            StopCoroutine(queueCoroutine);
+            queueCoroutine = null;
+            behaviourQueue.Clear();
+        }
+
         if (currentBehaviourCoroutine != null)
             StopCoroutine(currentBehaviourCoroutine);
 
         currentBehaviourCoroutine = StartCoroutine(newBehaviour);
+    }
+
+    // ─── Action Queue ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Cancels the running action queue and any current single behaviour coroutine.
+    /// </summary>
+    public void CancelQueue()
+    {
+        behaviourQueue.Clear();
+        if (queueCoroutine != null)
+        {
+            StopCoroutine(queueCoroutine);
+            queueCoroutine = null;
+        }
+        if (currentBehaviourCoroutine != null)
+        {
+            StopCoroutine(currentBehaviourCoroutine);
+            currentBehaviourCoroutine = null;
+        }
+    }
+
+    /// <summary>
+    /// Starts executing the current behaviourQueue sequentially.
+    /// Cancels any running single behaviour or previous queue first.
+    /// </summary>
+    private void ExecuteQueue()
+    {
+        if (currentBehaviourCoroutine != null)
+        {
+            StopCoroutine(currentBehaviourCoroutine);
+            currentBehaviourCoroutine = null;
+        }
+        if (queueCoroutine != null)
+            StopCoroutine(queueCoroutine);
+
+        queueCoroutine = StartCoroutine(ExecuteQueueRoutine());
+    }
+
+    /// <summary>
+    /// Runs each queued behaviour step in order, waiting for each to complete before starting the next.
+    /// </summary>
+    private IEnumerator ExecuteQueueRoutine()
+    {
+        while (behaviourQueue.Count > 0)
+        {
+            currentBehaviourCoroutine = StartCoroutine(behaviourQueue.Dequeue());
+            yield return currentBehaviourCoroutine;
+        }
+        queueCoroutine = null;
+        currentBehaviourCoroutine = null;
+    }
+
+    /// <summary>
+    /// Plans and executes a multi-step action sequence based on the LLM response and current NPC state.
+    /// Automatically adds prerequisite steps (e.g. PICK_UP before HAND_TO_PLAYER if not already holding).
+    /// For single-step actions, the caller should use NPCActionDispatcher instead.
+    /// </summary>
+    /// <param name="playerRequest">Original player request text, used for debug logging.</param>
+    /// <param name="llmResponse">The combined LLM response containing action fields.</param>
+    public void PlanAndExecuteTask(string playerRequest, NPCResponse llmResponse)
+    {
+        if (llmResponse == null || string.IsNullOrEmpty(llmResponse.action_key) || llmResponse.action_key == "NONE")
+            return;
+
+        string actionKey = llmResponse.action_key;
+        var registry = NPCActionTargetRegistry.Instance;
+
+        Transform primary = string.IsNullOrEmpty(llmResponse.action_target) ? null
+            : registry?.Resolve(llmResponse.action_target);
+        Transform secondary = string.IsNullOrEmpty(llmResponse.action_secondary_target) ? null
+            : registry?.Resolve(llmResponse.action_secondary_target);
+
+        behaviourQueue.Clear();
+
+        switch (actionKey)
+        {
+            case "HAND_TO_PLAYER":
+            {
+                bool needsPickup = !IsHoldingObject && primary != null;
+                if (needsPickup)
+                    behaviourQueue.Enqueue(PickUpRoutine(primary));
+                behaviourQueue.Enqueue(HandToPlayerRoutine());
+                Debug.Log($"[{npcController.npcName}] Queue planned: {(needsPickup ? "PICK_UP → " : "")}HAND_TO_PLAYER (request: \"{playerRequest}\")" );
+                ExecuteQueue();
+                break;
+            }
+
+            case "HAND_TO_NPC":
+            {
+                var targetNPC = secondary?.GetComponent<NPCBehaviourController>()
+                             ?? primary?.GetComponent<NPCBehaviourController>();
+                bool isItemTarget = primary != null && primary.GetComponent<NPCBehaviourController>() == null;
+                bool needsPickup = !IsHoldingObject && isItemTarget;
+                if (needsPickup)
+                    behaviourQueue.Enqueue(PickUpRoutine(primary));
+                if (targetNPC != null)
+                    behaviourQueue.Enqueue(HandToNPCRoutine(targetNPC));
+                Debug.Log($"[{npcController.npcName}] Queue planned: {(needsPickup ? "PICK_UP → " : "")}HAND_TO_NPC");
+                ExecuteQueue();
+                break;
+            }
+
+            default:
+                Debug.LogWarning($"[{npcController.npcName}] PlanAndExecuteTask: '{actionKey}' is single-step — use NPCActionDispatcher instead.");
+                break;
+        }
     }
 }

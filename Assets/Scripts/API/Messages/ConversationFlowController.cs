@@ -130,6 +130,7 @@ public class ConversationFlowController : MonoBehaviour
         if (inputField != null && (inputField.isFocused || !string.IsNullOrEmpty(inputField.text)))
         {
             playerIsInterrupting = true;
+            lastPlayerInputTime = Time.time; // Reset idle timer immediately when typing starts
 
             if (showDebugLogs)
             {

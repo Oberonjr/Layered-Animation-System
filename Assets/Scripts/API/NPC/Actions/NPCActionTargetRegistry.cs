@@ -131,14 +131,28 @@ public class NPCActionTargetRegistry : MonoBehaviour
     {
         if (string.IsNullOrEmpty(targetName)) return null;
 
+        // 1. Exact match (fastest path).
         if (allTargets.TryGetValue(targetName, out IActionTarget target))
             return target.Transform;
 
+        // 2. Case-insensitive exact match.
         var match = allTargets.Values.FirstOrDefault(t =>
             string.Equals(t.TargetName, targetName, System.StringComparison.OrdinalIgnoreCase));
+        if (match != null) return match.Transform;
 
-        if (match != null)
-            return match.Transform;
+        // 3. Contains match — handles LLM partial names (e.g. "scalpel" → "Scalpel_01").
+        //    Prefer the registered name whose length is closest to the query to avoid over-broad matches.
+        string lower = targetName.ToLower();
+        var containsMatch = allTargets.Values
+            .Where(t => t.TargetName.ToLower().Contains(lower) || lower.Contains(t.TargetName.ToLower()))
+            .OrderBy(t => Mathf.Abs(t.TargetName.Length - targetName.Length))
+            .FirstOrDefault();
+
+        if (containsMatch != null)
+        {
+            Debug.Log($"[TargetRegistry] Fuzzy match: '{targetName}' → '{containsMatch.TargetName}'");
+            return containsMatch.Transform;
+        }
 
         Debug.LogWarning($"[TargetRegistry] Target not found: '{targetName}'");
         return null;

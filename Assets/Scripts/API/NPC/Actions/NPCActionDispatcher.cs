@@ -122,6 +122,21 @@ public class NPCActionDispatcher : MonoBehaviour
             ? null
             : NPCActionTargetRegistry.Instance?.Resolve(command.action_secondary_target);
 
+        // Runtime target-type validation — guards against the LLM supplying an NPC name
+        // as the target for an action that requires a physical object (e.g. PICK_UP).
+        if (primaryTarget != null && actionDef.validTargetTypes != null && actionDef.validTargetTypes.Length > 0)
+        {
+            var primaryActionTarget = primaryTarget.GetComponent<IActionTarget>()
+                                   ?? primaryTarget.GetComponentInParent<IActionTarget>();
+            if (primaryActionTarget != null && !actionDef.IsValidTargetType(primaryActionTarget.Type))
+            {
+                Debug.LogWarning($"[Dispatcher] Invalid target type for '{actionDef.displayName}': " +
+                                 $"'{primaryTarget.name}' is {primaryActionTarget.Type}, expected " +
+                                 $"[{string.Join(", ", actionDef.validTargetTypes)}]. Aborting action.");
+                return;
+            }
+        }
+
         Debug.Log($"[Dispatcher] {npcCtrl.npcName} → {actionDef.displayName}" +
                   $"{(primaryTarget != null ? $" → {primaryTarget.name}" : "")}");
 
