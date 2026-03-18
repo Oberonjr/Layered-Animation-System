@@ -1032,6 +1032,24 @@ namespace LAS {
             prompt.AppendLine($"NPC physical state: {npcState}");
             prompt.AppendLine();
 
+            prompt.AppendLine("=== ENVIRONMENT STATE ===");
+            var targetRegistry = NPCActionTargetRegistry.Instance;
+            if (targetRegistry != null)
+            {
+                foreach (var target in targetRegistry.GetAllTargets())
+                {
+                    if (target is InteractableItem item)
+                    {
+                        prompt.AppendLine($"- {item.TargetName}: {item.GetStateDescription()}");
+                    }
+                    else if (target is LocationTarget loc)
+                    {
+                        prompt.AppendLine($"- {loc.TargetName}: {loc.GetStateDescription()}");
+                    }
+                }
+            }
+            prompt.AppendLine();
+
             if (actionDispatcher == null) actionDispatcher = NPCActionDispatcher.Instance;
             if (actionDispatcher != null)
             {

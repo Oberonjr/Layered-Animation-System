@@ -2006,11 +2006,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 893691679}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: 029f113744c6baa42823ef3643cc1637, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.LocationTarget
   targetType: 2
   customName: patient bed
+  occupants: []
+  itemsHere: []
 --- !u!1 &948308631
 GameObject:
   m_ObjectHideFlags: 0
@@ -3236,11 +3238,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1460977688}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: 029f113744c6baa42823ef3643cc1637, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.LocationTarget
   targetType: 2
   customName: instrument tray
+  occupants: []
+  itemsHere: []
 --- !u!1 &1491631442
 GameObject:
   m_ObjectHideFlags: 0
@@ -4136,11 +4140,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 2036486655}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: c8c43b42717e6404186145472199c665, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.InteractableItem
   targetType: 3
   customName: scalpel
+  isHeld: 0
+  heldByNPC: 
+  currentLocation: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

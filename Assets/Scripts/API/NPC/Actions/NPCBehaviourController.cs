@@ -322,15 +322,21 @@ namespace LAS {
             Rigidbody rb = obj.GetComponent<Rigidbody>();
             if (rb != null) rb.isKinematic = true;
 
+            var interactable = obj.GetComponent<InteractableItem>();
+            if (interactable != null)
+            {
+                interactable.isHeld = true;
+                interactable.heldByNPC = npcController != null ? npcController.npcName : name;
+                interactable.currentLocation = "";
+            }
+
             OnPickedUpObject?.Invoke(this, obj);
         }
 
         /// <summary>
         /// Coroutine that walks to another NPC and transfers the held object to them.
         /// The object is re-parented to the target NPC's item slot.
-        /// Fires OnHandedObject event when complete.
         /// </summary>
-        /// <param name="targetNPC">The NPC to hand the object to.</param>
         private IEnumerator HandToNPCRoutine(NPCBehaviourController targetNPC)
         {
             // Walk to the target NPC
@@ -348,6 +354,14 @@ namespace LAS {
 
                 targetNPC.heldObject = transferring;
 
+                var interactable = transferring.GetComponent<InteractableItem>();
+                if (interactable != null)
+                {
+                    interactable.isHeld = true;
+                    interactable.heldByNPC = targetNPC.npcController != null ? targetNPC.npcController.npcName : targetNPC.name;
+                    interactable.currentLocation = "";
+                }
+
                 OnHandedObject?.Invoke(this, transferring);
             }
         }
@@ -358,9 +372,6 @@ namespace LAS {
         /// </summary>
         private IEnumerator HandToPlayerRoutine()
         {
-            isOffering = true;
-
-            // Walk to the player and face them before handing over the object.
             var registry = NPCActionTargetRegistry.Instance;
             var players = registry?.GetTargetsByType(TargetType.Player).ToList();
             Transform playerTransform = (players != null && players.Count > 0) ? players[0].Transform : null;
@@ -371,6 +382,8 @@ namespace LAS {
                 yield return LookAtRoutine(playerTransform);
             }
 
+            isOffering = true;
+
             if (playerHandoffMode == HandoffMode.DirectTransfer)
             {
                 // Parent the object directly to the player's transform.
@@ -380,6 +393,15 @@ namespace LAS {
                     heldObject.transform.localPosition = Vector3.zero;
                     Rigidbody rb = heldObject.GetComponent<Rigidbody>();
                     if (rb != null) rb.isKinematic = false;
+                    
+                    var interactable = heldObject.GetComponent<InteractableItem>();
+                    if (interactable != null)
+                    {
+                        interactable.isHeld = true;
+                        interactable.heldByNPC = "Player";
+                        interactable.currentLocation = "";
+                    }
+
                     OnHandedObject?.Invoke(this, heldObject);
                     heldObject = null;
                 }
@@ -481,6 +503,14 @@ namespace LAS {
             heldObject.transform.SetParent(null);
             Rigidbody rb = heldObject.GetComponent<Rigidbody>();
             if (rb != null) rb.isKinematic = false;
+            
+            var interactable = heldObject.GetComponent<InteractableItem>();
+            if (interactable != null)
+            {
+                interactable.isHeld = true;
+                interactable.heldByNPC = "Player";
+                interactable.currentLocation = "";
+            }
 
             OnHandedObject?.Invoke(this, heldObject);
             heldObject = null;
