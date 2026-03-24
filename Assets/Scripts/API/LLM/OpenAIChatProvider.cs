@@ -105,8 +105,12 @@ namespace LAS
         }
 
         /// <summary>
-        /// Posts the prompt as a single user message to the chat/completions endpoint with streaming.
-        /// Parses the SSE (Server-Sent Events) stream and accumulates the full response text.
+        /// Posts the prompt to the chat/completions endpoint with streaming.
+        /// The prompt is split into system + user roles so that GPT instruction-tuned models
+        /// treat scenario rules, character definitions, and response format as authoritative directives.
+        /// If the prompt contains "=== CURRENT INPUT ===" the content before it becomes the system
+        /// message and the player input becomes the user message. Otherwise the full prompt is the
+        /// system message with a minimal user trigger.
         /// Calls onComplete with the accumulated string; skips the call on failure or interrupt.
         /// </summary>
         public override IEnumerator SendRequest(string prompt, LLMGenerationOptions options, Action<string> onComplete)
@@ -126,7 +130,7 @@ namespace LAS
             var requestBody = new ChatCompletionRequest
             {
                 model       = modelName,
-                messages    = new[] { new ChatMessage { role = "user", content = prompt } },
+                messages    = BuildMessages(prompt),
                 temperature = options.temperature,
                 max_tokens  = options.maxTokens,
                 top_p       = options.topP,
@@ -187,6 +191,45 @@ namespace LAS
             }
 
             onComplete?.Invoke(sb.ToString());
+        }
+
+        // ── Message construction ──────────────────────────────────────────────────
+
+        /// <summary>
+        /// Splits the flat NPCManager prompt into system + user messages.
+        /// GPT instruction-tuned models follow rules much more reliably when they arrive
+        /// in the system role rather than the user role.
+        ///
+        /// Strategy:
+        ///   • If the prompt contains "=== CURRENT INPUT ===" (dialogue step):
+        ///       system = everything before the marker (context, rules, characters)
+        ///       user   = the player's input + any trailing response-format instructions
+        ///   • Otherwise (action classification, or any other prompt without the marker):
+        ///       system = entire prompt
+        ///       user   = minimal trigger so the API receives at least one user turn
+        /// </summary>
+        private static ChatMessage[] BuildMessages(string prompt)
+        {
+            const string MARKER = "=== CURRENT INPUT ===";
+            int markerIdx = prompt.IndexOf(MARKER, StringComparison.Ordinal);
+
+            if (markerIdx >= 0)
+            {
+                string systemPart = prompt.Substring(0, markerIdx).TrimEnd();
+                string userPart   = prompt.Substring(markerIdx + MARKER.Length).TrimStart();
+                return new[]
+                {
+                    new ChatMessage { role = "system", content = systemPart },
+                    new ChatMessage { role = "user",   content = userPart   }
+                };
+            }
+
+            // No marker — full prompt is instructions (e.g. action classification).
+            return new[]
+            {
+                new ChatMessage { role = "system", content = prompt              },
+                new ChatMessage { role = "user",   content = "Respond with JSON." }
+            };
         }
 
         /// <summary>Aborts any in-progress request. Called by NPCManager on player interruption.</summary>
