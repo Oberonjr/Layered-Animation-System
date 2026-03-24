@@ -4,17 +4,15 @@ using LAS;
 namespace LAS
 {
     /// <summary>
-    /// Attach to GameObjects to make them targetable by NPCs.
-    /// Auto-registers with NPCActionTargetRegistry on Start.
-    /// The GameObject's name is used as the target name unless a custom name is provided.
-    /// This component implements IActionTarget, making the object visible to the NPC action system.
+    /// Abstract base for all action-targetable scene objects.
+    /// Subclasses define their TargetType by overriding the Type property — no inspector field needed.
+    /// Handles automatic registration/unregistration with NPCActionTargetRegistry.
+    /// Do not add this component directly; use a concrete subclass such as
+    /// InteractableItem, LocationTarget, NPCTarget, or PlayerTarget.
     /// </summary>
-    public class ActionTarget : MonoBehaviour, IActionTarget
+    public abstract class ActionTarget : MonoBehaviour, IActionTarget
     {
         [Header("Target Configuration")]
-        [Tooltip("What type of target this is - determines which actions can use it. NPC: another agent, Player: the user, Location: a waypoint, InteractableObject: something that can be picked up/manipulated.")]
-        public TargetType targetType = TargetType.InteractableObject;
-
         [Tooltip("Optional: override the GameObject name for the target name. This name will be used by the LLM when referencing this target in action commands. Leave empty to use the GameObject's name.")]
         public string customName = "";
 
@@ -22,12 +20,12 @@ namespace LAS
         /// Returns the custom name if set, otherwise returns the GameObject's name.
         /// This is the identifier used by the LLM and action system to reference this target.
         /// </summary>
-        public string TargetName => string.IsNullOrEmpty(customName) ? gameObject.name : customName;
+        public virtual string TargetName => string.IsNullOrEmpty(customName) ? gameObject.name : customName;
 
         /// <summary>
-        /// Returns the configured target type, determining which actions can interact with this object.
+        /// The category of this target. Implemented by each subclass as a constant — no inspector assignment required.
         /// </summary>
-        public TargetType Type => targetType;
+        public abstract TargetType Type { get; }
 
         /// <summary>
         /// Returns this GameObject's transform for spatial operations (navigation, positioning, etc.).
@@ -38,7 +36,7 @@ namespace LAS
         /// Registers this target with the NPCActionTargetRegistry on scene start.
         /// This makes the target visible to the action system and available for NPC interactions.
         /// </summary>
-        void Start()
+        protected virtual void Start()
         {
             NPCActionTargetRegistry.Instance?.Register(this);
         }
@@ -47,7 +45,7 @@ namespace LAS
         /// Unregisters this target from the NPCActionTargetRegistry when destroyed.
         /// Ensures the action system doesn't reference invalid targets.
         /// </summary>
-        void OnDestroy()
+        protected virtual void OnDestroy()
         {
             NPCActionTargetRegistry.Instance?.Unregister(this);
         }
@@ -68,9 +66,9 @@ namespace LAS
         /// Cyan = NPC, Green = Player, Yellow = Location, Magenta = InteractableObject.
         /// </summary>
         /// <returns>The gizmo color corresponding to this target's type.</returns>
-        private Color GetGizmoColor()
+        protected virtual Color GetGizmoColor()
         {
-            return targetType switch
+            return Type switch
             {
                 TargetType.NPC => Color.cyan,
                 TargetType.Player => Color.green,
