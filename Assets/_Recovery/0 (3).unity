@@ -994,19 +994,17 @@ MonoBehaviour:
   chatContentParent: {fileID: 180983893}
   chatMessagePrefab: {fileID: 238049159449196339, guid: 71a8a0d4b0fe71f4589622fe40677343, type: 3}
   scenarioConfigFile: {fileID: 4900000, guid: d5b642fe5df12ab49a19da5fcca7e8c1, type: 3}
-  llmProvider: {fileID: 11400000, guid: b2bb2f81ff7956c49bafd514d9bbf8f2, type: 2}
-  dialogueOptions:
-    temperature: 0.7
-    topP: 0.9
-    topK: 40
-    maxTokens: 150
-    repeatPenalty: 1.1
-  actionOptions:
-    temperature: 0.1
-    topP: 0.9
-    topK: 10
-    maxTokens: 80
-    repeatPenalty: 1
+  baseUrl: 
+  availableModels: []
+  selectedModelIndex: 0
+  temperature: 0.7
+  topP: 0.9
+  topK: 40
+  maxTokensPerMessage: 450
+  repeatPenalty: 1.25
+  actionTemperature: 0.1
+  actionTopK: 10
+  actionMaxTokens: 80
   enableSimulatedStreaming: 1
   charactersPerSecond: 20
   adaptiveStreaming: 1
@@ -2522,9 +2520,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1153802750}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 30defc0c18142d34faedc4b91efc598f, type: 3}
+  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LAS.PlayerTarget
+  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
   customName: Player
 --- !u!1 &1180158568
 GameObject:

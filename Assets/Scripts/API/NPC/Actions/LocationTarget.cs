@@ -14,10 +14,7 @@ namespace LAS
         public List<string> occupants = new List<string>();
         public List<string> itemsHere = new List<string>();
 
-        void Awake()
-        {
-            targetType = TargetType.Location;
-        }
+        public override TargetType Type => TargetType.Location;
 
         public string GetStateDescription()
         {

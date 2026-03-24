@@ -14,10 +14,10 @@ namespace LAS
         public string heldByNPC = "";
         public string currentLocation = "";
 
+        public override TargetType Type => TargetType.InteractableObject;
+
         void Awake()
         {
-            targetType = TargetType.InteractableObject;
-            
             // Optionally, try to determine starting location if sitting on something
             if (transform.parent != null)
             {

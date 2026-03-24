@@ -10,7 +10,7 @@ namespace LAS {
     /// </summary>
     /// 
 
-    public class NPCController : MonoBehaviour, IActionTarget
+    public class NPCController : MonoBehaviour
     {
         [Header("NPC Identity")]
         [Tooltip("The display name of this NPC. Assigned from scenario configuration at runtime.")]
@@ -49,36 +49,19 @@ namespace LAS {
         /// <summary>The color the material is lerping toward (either normal or highlight).</summary>
         private Color targetColor;
 
-        /// <summary>Tracks whether this NPC has registered itself as an action target to prevent duplicate registration.</summary>
-        private bool hasRegisteredAsTarget = false;
-
         /// <summary>Gets the index assigned to this NPC by NPCManager.</summary>
         public int AssignedIndex => assignedIndex;
 
         /// <summary>Gets the highlight color used when this NPC is speaking.</summary>
         public Color HighlightColor => highlightColor;
 
-        // IActionTarget implementation
-        /// <summary>The name used by the action system to identify this NPC (used by LLM in commands).</summary>
-        public string TargetName => npcName;
-
-        /// <summary>Always returns TargetType.NPC for NPCController instances.</summary>
-        public TargetType Type => TargetType.NPC;
-
-        /// <summary>Returns this GameObject's transform for spatial operations.</summary>
-        public Transform Transform => transform;
-
         /// <summary>
-        /// Initializes the material and checks for duplicate ActionTarget components.
-        /// NPCController already implements IActionTarget, so a separate ActionTarget component is unnecessary.
+        /// Initializes the material and ensures an NPCTarget component is present for action system registration.
         /// </summary>
         void Awake()
         {
-            // Get or create material
             if (capsuleRenderer == null)
-            {
                 capsuleRenderer = GetComponent<Renderer>();
-            }
 
             if (capsuleRenderer != null)
             {
@@ -87,61 +70,30 @@ namespace LAS {
                 targetColor = normalColor;
             }
 
-            // Remove ActionTarget component if mistakenly added
-            var actionTarget = GetComponent<ActionTarget>();
-            if (actionTarget != null)
-            {
-                Debug.LogWarning($"[{gameObject.name}] NPCController already implements IActionTarget. Removing duplicate ActionTarget component.");
-                Destroy(actionTarget);
-            }
+            // Ensure NPCTarget is present — it handles registration with the action target registry.
+            if (GetComponent<NPCTarget>() == null)
+                gameObject.AddComponent<NPCTarget>();
         }
 
         /// <summary>
-        /// Registers this NPC with the event bus and action target registry.
-        /// Event bus registration happens immediately; action target registration happens after character data is assigned.
+        /// Registers this NPC with the event bus.
+        /// Action target registration is handled automatically by the NPCTarget component.
         /// </summary>
         void Start()
         {
-            // Register with the event bus
             NPCEventBus.RegisterNPC(this);
-
-            // Register as action target AFTER character data is assigned
-            // (The NPCManager will call AssignCharacterData before registry registration happens)
-            RegisterAsActionTarget();
         }
 
         /// <summary>
-        /// Registers this NPC with the NPCActionTargetRegistry, making it available for action targeting.
-        /// Prevents duplicate registration.
-        /// </summary>
-        private void RegisterAsActionTarget()
-        {
-            if (hasRegisteredAsTarget) return;
-
-            NPCActionTargetRegistry.Instance?.Register(this);
-            hasRegisteredAsTarget = true;
-            Debug.Log($"[{gameObject.name}] Registered as action target with name: '{npcName}'");
-        }
-
-        /// <summary>
-        /// Cleans up event bus and registry subscriptions, and destroys the material instance.
+        /// Cleans up event bus subscription and destroys the material instance.
+        /// Registry unregistration is handled automatically by the NPCTarget component.
         /// </summary>
         void OnDestroy()
         {
-            // Unregister from event bus
             NPCEventBus.UnregisterNPC(this);
 
-            // Unregister from target registry
-            if (hasRegisteredAsTarget)
-            {
-                NPCActionTargetRegistry.Instance?.Unregister(this);
-            }
-
-            // Clean up material
             if (material != null)
-            {
                 Destroy(material);
-            }
         }
 
         /// <summary>
@@ -184,20 +136,18 @@ namespace LAS {
         /// <param name="description">Full character description (personality, background, communication style).</param>
         public void AssignCharacterData(string name, string role, string description)
         {
+            var target = GetComponent<NPCTarget>();
+
+            // Unregister while TargetName still reflects the old npcName, then update, then re-register.
+            if (target != null)
+                NPCActionTargetRegistry.Instance?.Unregister(target);
+
             npcName = name;
             characterRole = role;
             characterDescription = description;
 
-            // If already registered, update the registry with new name
-            if (hasRegisteredAsTarget)
-            {
-                // Unregister with old name
-                NPCActionTargetRegistry.Instance?.Unregister(this);
-                hasRegisteredAsTarget = false;
-
-                // Re-register with new name
-                RegisterAsActionTarget();
-            }
+            if (target != null)
+                NPCActionTargetRegistry.Instance?.Register(target);
         }
 
         /// <summary>

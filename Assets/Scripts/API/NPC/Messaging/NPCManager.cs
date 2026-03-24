@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Networking;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
@@ -22,26 +21,32 @@ namespace LAS {
     
         [Header("Scenario Configuration")]
         [SerializeField] private TextAsset scenarioConfigFile;
-    
-        [Header("Ollama Connection")]
-        [SerializeField] private string baseUrl = "";
-        [SerializeField] private List<string> availableModels = new List<string>();
-        [SerializeField] private int selectedModelIndex = 0;
-    
-        [Header("AI Parameters")]
-        [SerializeField] [Range(0.1f, 2.0f)] private float temperature = 0.7f;
-        [SerializeField] [Range(0.1f, 1.0f)] private float topP = 0.9f;
-        [SerializeField] [Range(1f, 100f)] private float topK = 40f;
-        [SerializeField] private int maxTokensPerMessage = 150;
-        [SerializeField] [Range(1.0f, 2.0f)] private float repeatPenalty = 1.1f;
-    
-        [Header("Action Classification")]
-        [Tooltip("Temperature for the action classification step. Keep low (0.05–0.2) for deterministic action selection.")]
-        [SerializeField] [Range(0.0f, 0.5f)] private float actionTemperature = 0.1f;
-        [Tooltip("Top-K for action classification. Low value (5–15) keeps output tightly constrained.")]
-        [SerializeField] [Range(1f, 40f)] private float actionTopK = 10f;
-        [Tooltip("Max tokens for the action classification response. 80 is sufficient for a short JSON action object.")]
-        [SerializeField] private int actionMaxTokens = 80;
+
+        [Header("LLM Provider")]
+        [Tooltip("Assign an OllamaProvider, OpenAIChatProvider, or other LLMProviderBase component here.")]
+        [SerializeField] private LLMProviderBase llmProvider;
+
+        [Header("Dialogue Generation Options")]
+        [Tooltip("Parameters for Step 1 (dialogue). Higher temperature = more natural / creative.")]
+        [SerializeField] private LLMGenerationOptions dialogueOptions = new LLMGenerationOptions
+        {
+            temperature   = 0.7f,
+            topP          = 0.9f,
+            topK          = 40f,
+            maxTokens     = 150,
+            repeatPenalty = 1.1f
+        };
+
+        [Header("Action Classification Options")]
+        [Tooltip("Parameters for Step 2 (action selection). Low temperature = more deterministic output.")]
+        [SerializeField] private LLMGenerationOptions actionOptions = new LLMGenerationOptions
+        {
+            temperature   = 0.1f,
+            topP          = 0.9f,
+            topK          = 10f,
+            maxTokens     = 80,
+            repeatPenalty = 1.0f
+        };
 
         [Header("Streaming Settings")]
         [SerializeField] private bool enableSimulatedStreaming = true;
@@ -66,18 +71,12 @@ namespace LAS {
         private ScenarioConfig scenarioConfig;
         private List<ChatMessage> conversationHistory = new List<ChatMessage>();
         private bool isProcessing = false;
-        private const int DEFAULT_PORT = 11434;
 
         private bool _interruptGenerationFlag = false;
-        private UnityWebRequest _activeRequest;
         private Coroutine _streamingTextCoroutine;
         private NPCController _activeSpeaker;
         private int _lastAutoSpeakerIndex = 0; // Tracks last NPC that spoke in auto-conversation to ensure alternation
 
-        public string SelectedModel => selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count 
-            ? availableModels[selectedModelIndex] 
-            : "";
-    
         public bool IsProcessing => isProcessing;
 
         // Public accessors for ConversationFlowController
@@ -198,21 +197,44 @@ namespace LAS {
                 }
             }
         
-            // Detect Ollama
-            yield return DetectOllamaSettings();
-        
+            // Connect to LLM provider
+            if (llmProvider == null)
+            {
+                Debug.LogError("[NPCManager] No LLM provider assigned! Assign one in the Inspector.");
+                AddSystemMessage("ERROR: No LLM provider assigned!");
+                if (sendButton != null) sendButton.interactable = false;
+                yield break;
+            }
+
+            bool connectionSuccess = false;
+            string connectionMessage = "";
+            yield return llmProvider.Connect((success, message) =>
+            {
+                connectionSuccess = success;
+                connectionMessage = message;
+            });
+
+            if (!connectionSuccess)
+            {
+                AddSystemMessage($"ERROR: {connectionMessage}");
+                if (sendButton != null) sendButton.interactable = false;
+                yield break;
+            }
+
+            AddSystemMessage(connectionMessage);
+
             // Add initial scenario messages
             if (scenarioConfig != null)
             {
                 AddSystemMessage($"=== {scenarioConfig.scenario.title} ===");
                 AddSystemMessage(scenarioConfig.scenario.description);
-            
+
                 if (scenarioConfig.player_character != null)
                 {
                     AddSystemMessage($"Your Role: {scenarioConfig.player_character.role}");
                     AddSystemMessage(scenarioConfig.player_character.description);
                 }
-            
+
                 // Initialize conversation with first NPC
                 if (scenarioConfig.conversation_initialization != null)
                 {
@@ -236,69 +258,6 @@ namespace LAS {
             return desc.ToString();
         }
 
-        private IEnumerator DetectOllamaSettings()
-        {
-            string[] possibleUrls = new string[]
-            {
-                $"http://localhost:{DEFAULT_PORT}",
-                $"http://127.0.0.1:{DEFAULT_PORT}",
-            };
-
-            bool found = false;
-        
-            foreach (string url in possibleUrls)
-            {
-                using (UnityWebRequest www = UnityWebRequest.Get(url + "/api/tags"))
-                {
-                    www.timeout = 2;
-                    yield return www.SendWebRequest();
-
-                    if (www.result == UnityWebRequest.Result.Success)
-                    {
-                        baseUrl = url;
-                        found = true;
-                    
-                        try
-                        {
-                            OllamaTagsResponse tagsResponse = JsonUtility.FromJson<OllamaTagsResponse>(www.downloadHandler.text);
-                        
-                            if (tagsResponse.models != null && tagsResponse.models.Length > 0)
-                            {
-                                availableModels.Clear();
-                                foreach (var model in tagsResponse.models)
-                                {
-                                    availableModels.Add(model.name);
-                                }
-                            
-                                selectedModelIndex = 0;
-                            
-                                Debug.Log($"Ollama detected at {baseUrl}");
-                                Debug.Log($"Selected model: {SelectedModel}");
-                            
-                                AddSystemMessage($"Connected - Using: {SelectedModel}");
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            Debug.LogError("Failed to parse models: " + e.Message);
-                        }
-                    
-                        break;
-                    }
-                }
-            }
-
-            if (!found)
-            {
-                Debug.LogError("Could not detect Ollama. Make sure it's running with 'ollama serve'");
-                AddSystemMessage("ERROR: Ollama not detected! Run 'ollama serve'");
-            
-                if (sendButton != null)
-                {
-                    sendButton.interactable = false;
-                }
-            }
-        }
 
         private IEnumerator InitiateConversation()
         {
@@ -375,9 +334,9 @@ namespace LAS {
 
         private IEnumerator GetNPCResponse(string userInput, int specificNPCIndex)
         {
-            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(SelectedModel))
+            if (llmProvider == null || !llmProvider.IsConnected)
             {
-                Debug.LogError("Ollama not configured!");
+                Debug.LogError("[NPCManager] LLM provider not available.");
                 yield break;
             }
 
@@ -397,17 +356,8 @@ namespace LAS {
             if (logPrompts)
                 Debug.Log($"[NPCManager] === LLM REQUEST (Dialogue) ===\n{step1Prompt}");
 
-            OllamaOptions dialogueOptions = new OllamaOptions
-            {
-                temperature = temperature,
-                top_p = topP,
-                top_k = topK,
-                num_predict = maxTokensPerMessage,
-                repeat_penalty = repeatPenalty
-            };
-
             string step1Raw = null;
-            yield return StartCoroutine(StreamOllamaRequest(step1Prompt, dialogueOptions, r => step1Raw = r));
+            yield return StartCoroutine(llmProvider.SendRequest(step1Prompt, dialogueOptions, r => step1Raw = r));
 
             if (_interruptGenerationFlag || step1Raw == null)
             {
@@ -438,17 +388,8 @@ namespace LAS {
             if (logPrompts)
                 Debug.Log($"[NPCManager] === LLM REQUEST (Action) ===\n{step2Prompt}");
 
-            OllamaOptions actionOptions = new OllamaOptions
-            {
-                temperature = actionTemperature,
-                top_p = 0.9f,
-                top_k = actionTopK,
-                num_predict = actionMaxTokens,
-                repeat_penalty = 1.0f
-            };
-
             string step2Raw = null;
-            yield return StartCoroutine(StreamOllamaRequest(step2Prompt, actionOptions, r => step2Raw = r));
+            yield return StartCoroutine(llmProvider.SendRequest(step2Prompt, actionOptions, r => step2Raw = r));
 
             // Step 2 failure is non-fatal — NPC simply performs no physical action.
             NPCActionOnly actionResult = null;
@@ -618,96 +559,7 @@ namespace LAS {
             }
         }
 
-        // ─── Two-step LLM helpers ────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Streams a single Ollama request and returns the full accumulated response via callback.
-        /// Respects _interruptGenerationFlag — exits early without calling onComplete if interrupted.
-        /// </summary>
-        private IEnumerator StreamOllamaRequest(string prompt, OllamaOptions options, System.Action<string> onComplete)
-        {
-            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(SelectedModel) || _interruptGenerationFlag)
-                yield break;
-
-            OllamaRequest requestData = new OllamaRequest
-            {
-                model = SelectedModel,
-                prompt = prompt,
-                stream = true,
-                options = options
-            };
-
-            string jsonData = JsonUtility.ToJson(requestData);
-            string url = baseUrl + "/api/generate";
-
-            UnityWebRequest www = new UnityWebRequest(url, "POST");
-            _activeRequest = www;
-            www.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jsonData));
-            StreamingDownloadHandler downloadHandler = new StreamingDownloadHandler();
-            www.downloadHandler = downloadHandler;
-            www.SetRequestHeader("Content-Type", "application/json");
-            www.timeout = 0;
-
-            var operation = www.SendWebRequest();
-            StringBuilder fullResponse = new StringBuilder();
-
-            while (!operation.isDone)
-            {
-                if (_interruptGenerationFlag)
-                {
-                    www.Abort();
-                    www.Dispose();
-                    _activeRequest = null;
-                    yield break;
-                }
-
-                if (downloadHandler.HasNewData())
-                {
-                    string newText = downloadHandler.GetNewText();
-                    foreach (string line in newText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        try
-                        {
-                            OllamaStreamResponse sr = JsonUtility.FromJson<OllamaStreamResponse>(line);
-                            if (!string.IsNullOrEmpty(sr.response))
-                                fullResponse.Append(sr.response);
-                        }
-                        catch { }
-                    }
-                }
-                yield return null;
-            }
-
-            // Flush any remaining buffered data.
-            if (downloadHandler.HasNewData())
-            {
-                string newText = downloadHandler.GetNewText();
-                foreach (string line in newText.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    try
-                    {
-                        OllamaStreamResponse sr = JsonUtility.FromJson<OllamaStreamResponse>(line);
-                        if (!string.IsNullOrEmpty(sr.response))
-                            fullResponse.Append(sr.response);
-                    }
-                    catch { }
-                }
-            }
-
-            bool success = www.result == UnityWebRequest.Result.Success;
-            string error = www.error;
-            www.Dispose();
-            _activeRequest = null;
-
-            if (!success)
-            {
-                isProcessing = false;
-                Debug.LogError($"[NPCManager] Ollama request failed: {error} | interruptFlag={_interruptGenerationFlag}| isProcessing={isProcessing}");
-                yield break;
-            }
-
-            onComplete?.Invoke(fullResponse.ToString());
-        }
+        // ─── Two-step LLM helpers ─────────────────────────────────────────────────
 
         /// <summary>
         /// Interrupts any in-progress LLM generation and dialogue streaming.
@@ -716,7 +568,7 @@ namespace LAS {
         public void InterruptCurrentGeneration()
         {
             _interruptGenerationFlag = true;
-            _activeRequest?.Abort();
+            llmProvider?.Interrupt();
 
             if (_streamingTextCoroutine != null)
             {
@@ -1072,163 +924,6 @@ namespace LAS {
             return prompt.ToString();
         }
 
-        private string BuildStructuredPrompt(string currentInput, int specificNPCIndex)
-        {
-            StringBuilder prompt = new StringBuilder();
-        
-            // Scenario context
-            if (scenarioConfig != null)
-            {
-                prompt.AppendLine("=== SCENARIO CONTEXT ===");
-                prompt.AppendLine($"Setting: {scenarioConfig.scenario.setting}");
-                prompt.AppendLine($"Timeframe: {scenarioConfig.scenario.timeframe}");
-                if (scenarioConfig.conversation_initialization != null)
-                {
-                    prompt.AppendLine($"Context: {scenarioConfig.conversation_initialization.context}");
-                }
-                prompt.AppendLine();
-            
-                // Player context
-                if (scenarioConfig.player_character != null)
-                {
-                    prompt.AppendLine("=== PLAYER CHARACTER ===");
-                    prompt.AppendLine($"Role: {scenarioConfig.player_character.role}");
-                    prompt.AppendLine($"Description: {scenarioConfig.player_character.description}");
-                    prompt.AppendLine();
-                }
-            
-                // System instructions - CORE RULES
-                prompt.AppendLine("=== CORE RULES (FOLLOW STRICTLY) ===");
-                foreach (var rule in scenarioConfig.system_instructions.core_rules)
-                {
-                    prompt.AppendLine($"• {rule}");
-                }
-                prompt.AppendLine();
-            
-                // Characters
-                prompt.AppendLine("=== CHARACTERS (BY INDEX) ===");
-                for (int i = 0; i < scenarioConfig.characters.Length && i < registeredNPCs.Count; i++)
-                {
-                    var character = scenarioConfig.characters[i];
-                    var npc = registeredNPCs[i];
-                    prompt.AppendLine($"NPC {i}: {character.name} ({character.role})");
-                    prompt.AppendLine($"  Personality: {character.personality}");
-                    prompt.AppendLine($"  Teaching: {character.teaching_approach}");
-                    prompt.AppendLine($"  Current: {character.current_state}");
-                }
-                prompt.AppendLine();
-            
-                // Progression steps if enabled
-                if (includeProgressionContext && scenarioConfig.required_progression_steps != null)
-                {
-                    prompt.AppendLine("=== REQUIRED PROGRESSION STEPS ===");
-                    prompt.AppendLine("You MUST guide the student through these steps in order:");
-                    for (int i = 0; i < scenarioConfig.required_progression_steps.Length; i++)
-                    {
-                        var step = scenarioConfig.required_progression_steps[i];
-                        string status = i < currentProgressionStep ? "[COMPLETED]" : 
-                                       i == currentProgressionStep ? "[CURRENT]" : "[UPCOMING]";
-                        prompt.AppendLine($"{status} Step {step.step_id}: {step.title}");
-                        if (i == currentProgressionStep)
-                        {
-                            prompt.AppendLine($"  Description: {step.description}");
-                            prompt.AppendLine($"  Teaching moments: {string.Join(", ", step.teaching_moments)}");
-                        }
-                    }
-                    prompt.AppendLine();
-                }
-            }
-        
-            // Recent conversation history
-            if (conversationHistory.Count > 0)
-            {
-                prompt.AppendLine("=== RECENT CONVERSATION ===");
-                int startIndex = Mathf.Max(0, conversationHistory.Count - contextHistoryLimit);
-                for (int i = startIndex; i < conversationHistory.Count; i++)
-                {
-                    var msg = conversationHistory[i];
-                    prompt.AppendLine($"{msg.speaker}: {msg.message}");
-                }
-                prompt.AppendLine();
-            }
-        
-            // Current input
-            prompt.AppendLine("=== CURRENT INPUT ===");
-            prompt.AppendLine(currentInput);
-            prompt.AppendLine();
-        
-            // Response format instructions
-            if (scenarioConfig != null)
-            {
-                prompt.AppendLine("=== REQUIRED RESPONSE FORMAT ===");
-                foreach (var rule in scenarioConfig.system_instructions.response_format)
-                {
-                    prompt.AppendLine($"• {rule}");
-                }
-                prompt.AppendLine();
-            
-                // CRITICAL: Prevent self-conversation
-                prompt.AppendLine("=== CRITICAL RULES ===");
-                prompt.AppendLine("• If YOU just asked a question, WAIT for someone else to answer");
-                prompt.AppendLine("• NEVER answer your own questions");
-                prompt.AppendLine("• NEVER have multiple exchanges by yourself");
-                prompt.AppendLine("• After you speak, someone else should respond next");
-                prompt.AppendLine();
-            
-                // Interaction guidelines
-                prompt.AppendLine("=== INTERACTION GUIDELINES ===");
-                foreach (var guideline in scenarioConfig.system_instructions.interaction_guidelines)
-                {
-                    prompt.AppendLine($"• {guideline}");
-                }
-                prompt.AppendLine();
-            
-                // Teaching behavior
-                if (scenarioConfig.system_instructions.teaching_behavior != null)
-                {
-                    prompt.AppendLine("=== TEACHING BEHAVIOR ===");
-                    foreach (var behavior in scenarioConfig.system_instructions.teaching_behavior)
-                    {
-                        prompt.AppendLine($"• {behavior}");
-                    }
-                    prompt.AppendLine();
-                }
-            
-                prompt.AppendLine("Example response format:");
-                prompt.AppendLine(JsonUtility.ToJson(scenarioConfig.example_response_format, true));
-                prompt.AppendLine();
-            }
-        
-            // Action vocabulary (auto-built from dispatcher's action definitions)
-            if (actionDispatcher == null)
-                actionDispatcher = NPCActionDispatcher.Instance;
-            if (actionDispatcher != null)
-            {
-                string vocab = actionDispatcher.BuildActionVocabularyPrompt();
-                if (!string.IsNullOrEmpty(vocab))
-                {
-                    prompt.AppendLine(vocab);
-                }
-            }
-        
-            // Specific NPC instruction
-            if (specificNPCIndex >= 0 && specificNPCIndex < registeredNPCs.Count)
-            {
-                prompt.AppendLine($"=== YOU ARE NPC {specificNPCIndex} ===");
-                prompt.AppendLine($"Respond as {registeredNPCs[specificNPCIndex].npcName}");
-            }
-            else
-            {
-                prompt.AppendLine("=== DETERMINE WHO SHOULD RESPOND ===");
-                prompt.AppendLine("Based on the context and who was addressed, decide which NPC should respond.");
-                prompt.AppendLine("If the Player addressed a specific person, THAT person must respond.");
-            }
-        
-            prompt.AppendLine();
-            prompt.AppendLine("Respond NOW in valid JSON format (no extra text):");
-        
-            return prompt.ToString();
-        }
 
         private ChatMessage AddChatMessage(string speaker, string message, MessageType type, NPCController npc = null)
         {
