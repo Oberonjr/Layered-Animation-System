@@ -912,14 +912,17 @@ namespace LAS {
 
             prompt.AppendLine("=== TASK ===");
             prompt.AppendLine($"Select the physical action {npcName} should perform based on what they said.");
+            prompt.AppendLine("IMPORTANT: LOOK_AT_PLAYER is the default action whenever the NPC is speaking directly to the player.");
+            prompt.AppendLine("Use LOOK_AT_PLAYER unless a more specific action (GO_TO, PICK_UP, HAND_TO_PLAYER, etc.) is clearly needed.");
+            prompt.AppendLine("Only use action_key: \"NONE\" if the NPC is speaking to another NPC (not the player) and no movement is needed.");
             prompt.AppendLine("RULES FOR action_target:");
             prompt.AppendLine("  • Use ONLY exact names from the Valid target names list above.");
             prompt.AppendLine("  • For PICK_UP or GO_TO: target must be an OBJECT name, never a person's name.");
             prompt.AppendLine("  • Match the target to what the PLAYER originally requested, not to names the NPC mentioned.");
-            prompt.AppendLine("If no physical action is needed, use action_key: \"NONE\".");
             prompt.AppendLine();
-            prompt.AppendLine("Respond with ONLY valid JSON (no other text):");
-            prompt.AppendLine("{\"action_key\": \"ACTION_KEY_HERE\", \"action_target\": \"exact_registered_name_or_empty\", \"action_secondary_target\": \"\"}");
+            prompt.AppendLine("Respond with ONLY valid JSON (no other text). Examples:");
+            prompt.AppendLine("{\"action_key\": \"LOOK_AT_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}");
+            prompt.AppendLine("{\"action_key\": \"PICK_UP\", \"action_target\": \"exact_object_name\", \"action_secondary_target\": \"\"}");
 
             return prompt.ToString();
         }
