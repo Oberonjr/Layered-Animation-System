@@ -29,6 +29,14 @@ namespace LAS
         /// <summary>Fired when the player sends a message. Parameters: (message text).</summary>
         public static event Action<string> OnPlayerMessage;
 
+        // Action Feedback Events
+        /// <summary>
+        /// Fired when an NPC cannot perform a requested action (e.g. no valid item slot at location,
+        /// or already holding an object). Parameters: (NPC index, human-readable reason).
+        /// NPCManager subscribes to this and shows the reason as an in-character NPC response.
+        /// </summary>
+        public static event Action<int, string> OnActionImpossible;
+
         /// <summary>
         /// Triggers the OnNPCRegistered event.
         /// Called by NPCController.Start() to notify NPCManager and other systems.
@@ -78,6 +86,17 @@ namespace LAS
         public static void BroadcastPlayerMessage(string message)
         {
             OnPlayerMessage?.Invoke(message);
+        }
+
+        /// <summary>
+        /// Broadcasts that an NPC was unable to perform the requested action.
+        /// NPCManager listens to this and shows an in-character refusal message.
+        /// </summary>
+        /// <param name="npcIndex">Index of the NPC that could not act.</param>
+        /// <param name="reason">Short human-readable explanation (shown in chat).</param>
+        public static void BroadcastActionImpossible(int npcIndex, string reason)
+        {
+            OnActionImpossible?.Invoke(npcIndex, reason);
         }
     }
 

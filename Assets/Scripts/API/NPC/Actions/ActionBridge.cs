@@ -158,6 +158,19 @@ namespace LAS
         }
 
         /// <summary>
+        /// Makes the NPC walk to a LocationTarget and place their held item in the matching ItemSlot.
+        /// Fires an impossible-action message via NPCEventBus if no slot exists for the item.
+        /// </summary>
+        /// <param name="npc">The NPC performing the action (must be holding an item).</param>
+        /// <param name="target">The LocationTarget to place the item at.</param>
+        /// <param name="_">Unused secondary target.</param>
+        public void ExecutePutDown(NPCBehaviourController npc, Transform target, Transform _)
+        {
+            if (npc == null || target == null) return;
+            npc.PutDown(target);
+        }
+
+        /// <summary>
         /// Makes the NPC return to their idle/home position and reset their state.
         /// Stops all current behaviors and clears the navigation path.
         /// </summary>

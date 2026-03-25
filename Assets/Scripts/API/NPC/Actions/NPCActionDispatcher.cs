@@ -209,10 +209,7 @@ namespace LAS
             }
 
             if (queued > 0)
-            {
-                Debug.Log($"[Dispatcher] {npcCtrl.npcName} → sequence: {stepSummary}");
                 behaviour.StartQueuedActions();
-            }
         }
 
         /// <summary>
@@ -296,6 +293,44 @@ namespace LAS
 
             sb.AppendLine();
             sb.AppendLine("If no physical action is needed, use action_key: \"NONE\".");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Compact single-block vocabulary for the Step 2 action classification prompt.
+        /// Avoids multi-line descriptions and alias lists — just keys, one-line hints, and primary target names.
+        /// </summary>
+        public string BuildCompactActionVocabulary()
+        {
+            var sb = new System.Text.StringBuilder();
+
+            // One line per action key
+            sb.AppendLine("ACTION KEYS (use exactly as written):");
+            foreach (var kvp in actionHandlers)
+            {
+                if (kvp.Key == null) continue;
+                var def = kvp.Key;
+                string targetHint = def.requiresTarget ? $"  target={def.targetDescription}" : "";
+                sb.AppendLine($"  {def.actionKey}{targetHint}");
+            }
+            sb.AppendLine("  NONE  (no physical action needed)");
+            sb.AppendLine();
+
+            // Primary target names grouped by type — no aliases
+            var registry = NPCActionTargetRegistry.Instance;
+            if (registry != null)
+            {
+                sb.AppendLine("VALID TARGET NAMES:");
+                foreach (TargetType type in System.Enum.GetValues(typeof(TargetType)))
+                {
+                    var names = registry.GetTargetsByType(type)
+                        .Select(t => $"\"{t.TargetName}\"")
+                        .ToList();
+                    if (names.Count > 0)
+                        sb.AppendLine($"  [{type}] {string.Join(", ", names)}");
+                }
+            }
+
             return sb.ToString();
         }
 
