@@ -85,6 +85,8 @@ namespace LAS {
         private NPCActionDispatcher actionDispatcher;
         private ScenarioConfig scenarioConfig;
         private List<ChatMessage> conversationHistory = new List<ChatMessage>();
+        private List<string> recentActionLog = new List<string>(); // rolling log of dispatched action sequences
+        private const int ActionLogLimit = 6;
         private bool isProcessing = false;
 
         private bool _interruptGenerationFlag = false;
@@ -106,16 +108,18 @@ namespace LAS {
 
         void OnEnable()
         {
-            NPCEventBus.OnNPCRegistered += HandleNPCRegistration;
+            NPCEventBus.OnNPCRegistered   += HandleNPCRegistration;
             NPCEventBus.OnNPCUnregistered += HandleNPCUnregistration;
-            NPCEventBus.OnPlayerMessage += HandlePlayerMessage;
+            NPCEventBus.OnPlayerMessage   += HandlePlayerMessage;
+            NPCEventBus.OnActionImpossible += HandleActionImpossible;
         }
 
         void OnDisable()
         {
-            NPCEventBus.OnNPCRegistered -= HandleNPCRegistration;
+            NPCEventBus.OnNPCRegistered   -= HandleNPCRegistration;
             NPCEventBus.OnNPCUnregistered -= HandleNPCUnregistration;
-            NPCEventBus.OnPlayerMessage -= HandlePlayerMessage;
+            NPCEventBus.OnPlayerMessage   -= HandlePlayerMessage;
+            NPCEventBus.OnActionImpossible -= HandleActionImpossible;
         }
 
         void Start()
@@ -149,7 +153,7 @@ namespace LAS {
                 registeredNPCs.Add(npc);
                 npc.AssignIndex(index);
             
-                Debug.Log($"NPC registered at index {index}: {npc.gameObject.name}");
+                Debug.Log($"[NPCManager] Registered NPC {index}: {npc.npcName}");
             }
         }
 
@@ -158,7 +162,7 @@ namespace LAS {
             if (registeredNPCs.Contains(npc))
             {
                 registeredNPCs.Remove(npc);
-                Debug.Log($"NPC unregistered: {npc.gameObject.name}");
+                Debug.Log($"[NPCManager] Unregistered NPC: {npc.npcName}");
             }
         }
 
@@ -325,13 +329,31 @@ namespace LAS {
             );
         }
 
+        /// <summary>
+        /// Displays an in-character refusal from the NPC when a requested action is impossible.
+        /// Called via NPCEventBus.OnActionImpossible — no LLM call; instant feedback.
+        /// </summary>
+        private void HandleActionImpossible(int npcIndex, string reason)
+        {
+            if (npcIndex < 0 || npcIndex >= registeredNPCs.Count) return;
+            var npc = registeredNPCs[npcIndex];
+            AddChatMessage(npc.npcName, reason, MessageType.NPC, npc);
+        }
+
         public void OnPlayerSendMessage()
         {
             if (string.IsNullOrEmpty(playerInputField?.text))
                 return;
 
-            string message = playerInputField.text;
+            string message = playerInputField.text.Trim();
             playerInputField.text = "";
+
+            // ── Command intercept ──────────────────────────────────────────────────
+            if (message.StartsWith("/"))
+            {
+                ProcessCommand(message);
+                return;
+            }
 
             if (isProcessing)
             {
@@ -450,10 +472,18 @@ namespace LAS {
             NPCActionSequence actionSequence = null;
             if (!_interruptGenerationFlag && step2Raw != null)
             {
-                if (logLLMResponses)
-                    Debug.Log($"[NPCManager] === LLM RESPONSE (Action) ===\n{step2Raw}");
+                // Always log the raw Step 2 output — it's short (one JSON line) and is the
+                // primary diagnostic for whether the problem is LLM-side or parse/dispatch-side.
+                Debug.Log($"[Action raw] {step2Raw.Trim()}");
 
                 actionSequence = ParseActionSequence(step2Raw);
+
+                if (actionSequence == null)
+                    Debug.LogWarning($"[NPCManager] Step 2 parse failed — no action dispatched. Raw: {step2Raw.Trim()}");
+            }
+            else if (!_interruptGenerationFlag)
+            {
+                Debug.LogWarning("[NPCManager] Step 2 returned null — LLM may have timed out or returned empty.");
             }
 
             if (_interruptGenerationFlag)
@@ -482,14 +512,23 @@ namespace LAS {
                 action_secondary_target = ""
             };
 
+            // Always-on compact summary — one line per NPC turn.
+            {
+                string speakerName = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
+                    ? registeredNPCs[npcIndex].npcName : $"NPC {npcIndex}";
+                string actionPart = string.IsNullOrEmpty(actionSummary) || actionSummary == "NONE"
+                    ? "NONE"
+                    : actionSummary;
+                Debug.Log($"[NPC] {speakerName} → {actionPart} | \"{finalResponse.dialogue}\"");
+            }
+
             if (showDetailedDebug || logLLMResponses)
             {
                 string speakerName = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
                     ? registeredNPCs[npcIndex].npcName : $"NPC {npcIndex}";
-                Debug.Log($"[NPCManager] === FINAL PARSED ===\n" +
-                          $"Speaker: {speakerName} (NPC {npcIndex})\n" +
-                          $"Dialogue: \"{finalResponse.dialogue}\"\n" +
+                Debug.Log($"[NPCManager] Full response — Speaker: {speakerName} (NPC {npcIndex})\n" +
                           $"Action Sequence: {actionSummary}\n" +
+                          $"Dialogue: \"{finalResponse.dialogue}\"\n" +
                           $"Internal Thought: \"{finalResponse.internal_thought}\"");
             }
 
@@ -520,7 +559,22 @@ namespace LAS {
                     if (actionDispatcher == null)
                         actionDispatcher = NPCActionDispatcher.Instance;
 
-                    actionDispatcher?.DispatchSequence(npcIndex, actionSequence, registeredNPCs);
+                    if (actionDispatcher == null)
+                        Debug.LogWarning("[NPCManager] No NPCActionDispatcher found — action will not execute.");
+                    else
+                        actionDispatcher.DispatchSequence(npcIndex, actionSequence, registeredNPCs);
+
+                    // Record for action classification context in future turns
+                    string npcLabel = currentSpeaker?.npcName ?? $"NPC {npcIndex}";
+                    string steps = string.Join(" → ", actionSequence.actions
+                        .Where(a => !string.IsNullOrEmpty(a.action_key) && a.action_key != "NONE")
+                        .Select(a => string.IsNullOrEmpty(a.action_target) ? a.action_key : $"{a.action_key}({a.action_target})"));
+                    if (!string.IsNullOrEmpty(steps))
+                    {
+                        recentActionLog.Add($"{npcLabel}: {steps}");
+                        if (recentActionLog.Count > ActionLogLimit)
+                            recentActionLog.RemoveAt(0);
+                    }
                 }
             }
 
@@ -554,7 +608,6 @@ namespace LAS {
             }
 
             _activeSpeaker = null;
-            Debug.Log($"[NPCManager] isProcessing reset to false");
             isProcessing = false;
         }
 
@@ -711,51 +764,55 @@ namespace LAS {
 
                 // Extract internal_thought if present.
                 var thoughtMatch = Regex.Match(raw, "\"internal_thought\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
-                if (thoughtMatch.Success)
-                    result.internal_thought = thoughtMatch.Groups[1].Value;
+                string extractedThought = thoughtMatch.Success ? thoughtMatch.Groups[1].Value : null;
+                if (extractedThought != null)
+                    result.internal_thought = extractedThought;
 
-                // Collect all quoted strings, skip known JSON field names, keep the rest as dialogue candidates.
-                    var fieldNames = new HashSet<string>
-                        { "npc_index", "dialogue", "internal_thought", "action_key", "action_target", "action_secondary_target" };
+                // Collect all quoted strings, skip known JSON field names and the already-extracted thought.
+                var fieldNames = new HashSet<string>
+                    { "npc_index", "dialogue", "internal_thought", "action_key", "action_target", "action_secondary_target" };
 
-                    var candidates = Regex
-                        .Matches(raw, "\"((?:[^\"\\\\]|\\\\.){5,})\"")
-                        .Cast<Match>()
-                        .Select(m => m.Groups[1].Value)
-                        .Where(v => !fieldNames.Contains(v))
-                        .OrderBy(v => raw.IndexOf(v, StringComparison.Ordinal))
-                        .ToList();
+                var candidates = Regex
+                    .Matches(raw, "\"((?:[^\"\\\\]|\\\\.){5,})\"")
+                    .Cast<Match>()
+                    .Select(m => m.Groups[1].Value)
+                    .Where(v => !fieldNames.Contains(v) &&
+                                (extractedThought == null || v != extractedThought))
+                    .OrderBy(v => raw.IndexOf(v, StringComparison.Ordinal))
+                    .ToList();
 
-                    if (candidates.Count == 0) return false;
+                if (candidates.Count == 0) return false;
 
-                    // Strip meta-description prefixes that the LLM wraps around dialogue.
-                    // e.g. "description of Dr. Chen's dialogue: I'll grab that now" → "I'll grab that now"
-                    string[] metaPrefixes = { "description of ", "as she responds", "as he responds",
-                                               "npc response:", "character says:", "response:", "reply:",
-                                               "as she says", "as he says", "dr.", "nurse", "michael" };
+                // Strip meta-description prefixes that the LLM wraps around dialogue.
+                // e.g. "description of Dr. Chen's dialogue: I'll grab that now" → "I'll grab that now"
+                string[] metaPrefixes = { "description of ", "as she responds", "as he responds",
+                                           "npc response:", "character says:", "response:", "reply:",
+                                           "as she says", "as he says", "dr.", "nurse", "michael" };
 
-                    var cleaned = candidates.Select(c =>
+                var cleaned = candidates.Select(c =>
+                {
+                    string s = c.TrimStart();
+                    foreach (var prefix in metaPrefixes)
                     {
-                        string s = c.TrimStart();
-                        foreach (var prefix in metaPrefixes)
+                        if (s.ToLower().StartsWith(prefix))
                         {
-                            if (s.ToLower().StartsWith(prefix))
-                            {
-                                int colonPos = s.IndexOf(':');
-                                // Only strip if there's real content after the colon
-                                if (colonPos > 0 && colonPos < s.Length - 5)
-                                    return s.Substring(colonPos + 1).Trim();
-                            }
+                            int colonPos = s.IndexOf(':');
+                            // Only strip if there's real content after the colon
+                            if (colonPos > 0 && colonPos < s.Length - 5)
+                                return s.Substring(colonPos + 1).Trim();
                         }
-                        return s;
-                    }).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-
-                    if (cleaned.Count > 0)
-                    {
-                        result.dialogue = string.Join(" ", cleaned);
-                        Debug.LogWarning($"[NPCManager] Fallback dialogue extraction used. Recovered: \"{result.dialogue}\"");
-                        return true;
                     }
+                    return s;
+                }).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+                // Pick the longest candidate as the most likely full dialogue sentence —
+                // do NOT join all candidates as that causes internal_thought and other strings to bleed in.
+                if (cleaned.Count > 0)
+                {
+                    result.dialogue = cleaned.OrderByDescending(s => s.Length).First();
+                    Debug.LogWarning($"[NPCManager] Fallback dialogue extraction used. Recovered: \"{result.dialogue}\"");
+                    return true;
+                }
             }
             catch (Exception ex)
             {
@@ -911,59 +968,33 @@ namespace LAS {
                     : "Not holding any object")
                 : "Unknown state";
 
-            prompt.AppendLine("=== ACTION CLASSIFICATION ===");
-            prompt.AppendLine($"NPC {npcIndex} ({npcName}) just responded to this exchange:");
-            prompt.AppendLine();
+            // ── Context (kept minimal — only what's needed for action selection) ─────
             prompt.AppendLine($"PLAYER: \"{playerInput}\"");
-            prompt.AppendLine($"{npcName} REPLIED: \"{npcDialogue}\"");
-            prompt.AppendLine();
-            prompt.AppendLine($"NPC physical state: {npcState}");
-            prompt.AppendLine();
-
-            prompt.AppendLine("=== ENVIRONMENT STATE ===");
-            var targetRegistry = NPCActionTargetRegistry.Instance;
-            if (targetRegistry != null)
-            {
-                foreach (var target in targetRegistry.GetAllTargets())
-                {
-                    if (target is InteractableItem item)
-                    {
-                        prompt.AppendLine($"- {item.TargetName}: {item.GetStateDescription()}");
-                    }
-                    else if (target is LocationTarget loc)
-                    {
-                        prompt.AppendLine($"- {loc.TargetName}: {loc.GetStateDescription()}");
-                    }
-                }
-            }
+            prompt.AppendLine($"{npcName}: \"{npcDialogue}\"");
+            prompt.AppendLine($"State: {npcState}");
+            if (recentActionLog.Count > 0)
+                prompt.AppendLine($"Recent: {string.Join(" | ", recentActionLog)}");
             prompt.AppendLine();
 
+            // ── Compact vocabulary ────────────────────────────────────────────────────
             if (actionDispatcher == null) actionDispatcher = NPCActionDispatcher.Instance;
             if (actionDispatcher != null)
-            {
-                string vocab = actionDispatcher.BuildActionVocabularyPrompt();
-                if (!string.IsNullOrEmpty(vocab))
-                    prompt.AppendLine(vocab);
-            }
+                prompt.Append(actionDispatcher.BuildCompactActionVocabulary());
 
-            prompt.AppendLine("=== TASK ===");
-            prompt.AppendLine($"Select the physical action(s) {npcName} should perform based on this exchange.");
-            prompt.AppendLine();
+            // ── Task ──────────────────────────────────────────────────────────────────
             prompt.AppendLine("RULES:");
-            prompt.AppendLine("• LOOK_AT_PLAYER is the DEFAULT when the NPC speaks directly to the player — always include it unless a bigger action supersedes it.");
-            prompt.AppendLine("• Use NONE only when the NPC is speaking to another NPC and no movement is needed.");
-            prompt.AppendLine("• You may chain multiple steps when required (e.g. PICK_UP then HAND_TO_PLAYER for 'give me the scalpel').");
-            prompt.AppendLine("• Use ONLY primary names from the valid target list above in action_target.");
-            prompt.AppendLine("• For PICK_UP or GO_TO: target must be an OBJECT name, never a person's name.");
+            prompt.AppendLine("• Physical task (move/pick up/hand/place)? → use those keys only. No LOOK_AT_PLAYER.");
+            prompt.AppendLine("• Talking to player, or player asks NPC to look/face them? → LOOK_AT_PLAYER.");
+            prompt.AppendLine("• NPC-to-NPC only, no movement? → NONE.");
+            prompt.AppendLine("• Chain steps in order. Use exact primary names from VALID TARGET NAMES.");
             prompt.AppendLine();
-            prompt.AppendLine("Respond with ONLY valid JSON in this EXACT format:");
-            prompt.AppendLine("{\"actions\": [{\"action_key\": \"STEP\", \"action_target\": \"name_or_empty\", \"action_secondary_target\": \"\"}]}");
+            prompt.AppendLine("Output ONLY JSON:");
+            prompt.AppendLine("{\"actions\":[{\"action_key\":\"KEY\",\"action_target\":\"name_or_empty\",\"action_secondary_target\":\"\"}]}");
             prompt.AppendLine();
-            prompt.AppendLine("Single-step example (NPC talks to player):");
-            prompt.AppendLine("{\"actions\": [{\"action_key\": \"LOOK_AT_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}]}");
-            prompt.AppendLine();
-            prompt.AppendLine("Multi-step example (player asks NPC to bring an object):");
-            prompt.AppendLine("{\"actions\": [{\"action_key\": \"PICK_UP\", \"action_target\": \"Scalpel\", \"action_secondary_target\": \"\"}, {\"action_key\": \"HAND_TO_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}]}");
+            prompt.AppendLine("Examples:");
+            prompt.AppendLine("look at player → {\"actions\":[{\"action_key\":\"LOOK_AT_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
+            prompt.AppendLine("go to table   → {\"actions\":[{\"action_key\":\"GO_TO\",\"action_target\":\"Supply Table\",\"action_secondary_target\":\"\"}]}");
+            prompt.AppendLine("give scalpel  → {\"actions\":[{\"action_key\":\"PICK_UP\",\"action_target\":\"Scalpel\",\"action_secondary_target\":\"\"},{\"action_key\":\"HAND_TO_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
 
             return prompt.ToString();
         }
@@ -1056,6 +1087,66 @@ namespace LAS {
         private void AddSystemMessage(string message)
         {
             AddChatMessage("System", message, MessageType.System);
+        }
+
+        // ── Command system ────────────────────────────────────────────────────────
+
+        private void ProcessCommand(string input)
+        {
+            string cmd = input.Substring(1).Trim().ToLower();
+            switch (cmd)
+            {
+                case "help": ShowHelpMessage(); break;
+                default:
+                    AddSystemMessage($"Unknown command '{input}'. Type /help for available commands.");
+                    break;
+            }
+        }
+
+        private void ShowHelpMessage()
+        {
+            if (actionDispatcher == null) actionDispatcher = NPCActionDispatcher.Instance;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("=== NPC ACTIONS ===");
+
+            if (actionDispatcher != null)
+            {
+                foreach (var def in actionDispatcher.GetActiveActions())
+                {
+                    sb.Append($"  {def.actionKey}");
+                    if (def.requiresTarget)         sb.Append($"  →  target: {def.targetDescription}");
+                    if (def.requiresSecondaryTarget) sb.Append($"  /  secondary: {def.secondaryTargetDescription}");
+                    sb.AppendLine();
+                    sb.AppendLine($"    {def.llmDescription}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  (No dispatcher found — NPCActionDispatcher not present in scene.)");
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("=== REGISTERED TARGETS ===");
+
+            var registry = NPCActionTargetRegistry.Instance;
+            if (registry != null)
+            {
+                foreach (TargetType type in Enum.GetValues(typeof(TargetType)))
+                {
+                    var targets = new System.Collections.Generic.List<IActionTarget>(registry.GetTargetsByType(type));
+                    if (targets.Count == 0) continue;
+                    sb.AppendLine($"  [{type}]");
+                    foreach (var t in targets)
+                        sb.AppendLine($"    • {t.TargetName}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  (No registry found.)");
+            }
+
+            AddSystemMessage(sb.ToString());
         }
 
         private IEnumerator ScrollToBottom()

@@ -40,8 +40,14 @@ namespace LAS {
         [SerializeField] private float lookStopAngleThreshold = 2f;
 
         [Header("Navigation Settings")]
-        [Tooltip("The distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters).")]
+        [Tooltip("The default distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters). Used by GO_TO and RETURN_TO_IDLE.")]
         [SerializeField] private float arrivalDistance = 0.5f;
+
+        [Tooltip("How close the NPC must get before picking up an object. Keep slightly larger than the item's collision radius.")]
+        [SerializeField] private float pickupRange = 1.2f;
+
+        [Tooltip("How close the NPC must get before handing an object to a player or another NPC.")]
+        [SerializeField] private float handOverRange = 1.0f;
 
         [Tooltip("Maximum seconds the NPC will try to navigate before giving up. Prevents infinite loops if the NavMesh agent stalls (B8 fix).")]
         [SerializeField] private float goToTimeoutSeconds = 15f;
@@ -221,6 +227,16 @@ namespace LAS {
         }
 
         /// <summary>
+        /// Walk to a LocationTarget and place the held item in its matching ItemSlot.
+        /// Fires OnActionImpossible via NPCEventBus if no slot exists for the held item.
+        /// </summary>
+        public void PutDown(Transform locationTarget)
+        {
+            if (locationTarget == null) return;
+            SwitchBehaviour(PutDownRoutine(locationTarget));
+        }
+
+        /// <summary>
         /// Face the target and gesture toward them - signal you want their object.
         /// The target NPC decides whether to hand it over.
         /// </summary>
@@ -271,14 +287,24 @@ namespace LAS {
         /// Waits until the NPC reaches the arrival distance, then fires OnArrivedAtTarget event.
         /// </summary>
         /// <param name="target">The transform to navigate to.</param>
-        private IEnumerator GoToRoutine(Transform target)
+        /// <param name="range">Stopping distance override. Pass a positive value to stop closer or
+        /// farther than the default arrivalDistance (e.g. pickupRange, handOverRange).</param>
+        private IEnumerator GoToRoutine(Transform target, float range = -1f)
         {
+            float effectiveRange = range > 0f ? range : arrivalDistance;
+
+            // Ensure the agent's own stoppingDistance doesn't fight our range check.
+            agent.stoppingDistance = 0f;
             agent.SetDestination(target.position);
+
             float startTime = Time.time;
+
+            // Wait one frame — immediately after SetDestination, pathPending may still be false
+            // and remainingDistance may be 0, which would trigger a false arrival.
+            yield return null;
 
             while (true)
             {
-                // Timeout guard: prevents infinite loop if the NavMesh agent stalls permanently.
                 if (Time.time - startTime > goToTimeoutSeconds)
                 {
                     Debug.LogWarning($"[{npcController.npcName}] GoTo timed out after {goToTimeoutSeconds}s navigating to '{target.name}'.");
@@ -286,12 +312,29 @@ namespace LAS {
                     yield break;
                 }
 
-                if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
+                // Still calculating path — keep waiting.
+                if (agent.pathPending)
+                {
+                    yield return null;
+                    continue;
+                }
+
+                // No valid path exists (obstacle, off-mesh, etc.).
+                if (agent.pathStatus == NavMeshPathStatus.PathInvalid)
+                {
+                    Debug.LogWarning($"[{npcController.npcName}] GoTo: no valid NavMesh path to '{target.name}'.");
+                    agent.ResetPath();
+                    yield break;
+                }
+
+                // Arrived within range.
+                if (agent.remainingDistance <= effectiveRange)
                 {
                     agent.ResetPath();
                     OnArrivedAtTarget?.Invoke(this, target);
                     yield break;
                 }
+
                 yield return null;
             }
         }
@@ -304,8 +347,17 @@ namespace LAS {
         /// <param name="target">The object to pick up.</param>
         private IEnumerator PickUpRoutine(Transform target)
         {
-            // Walk to object
-            yield return GoToRoutine(target);
+            if (IsHoldingObject)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] PickUp: already holding '{heldObject.name}'. Cannot pick up '{target.name}'.");
+                int idx = GetNPCIndex();
+                NPCEventBus.BroadcastActionImpossible(idx,
+                    $"I'm already holding {heldObject.name} — I can't pick up {target.name} at the same time.");
+                yield break;
+            }
+
+            // Walk to object using pickup-specific range
+            yield return GoToRoutine(target, pickupRange);
 
             // Pick it up
             GameObject obj = target.gameObject;
@@ -339,8 +391,8 @@ namespace LAS {
         /// </summary>
         private IEnumerator HandToNPCRoutine(NPCBehaviourController targetNPC)
         {
-            // Walk to the target NPC
-            yield return GoToRoutine(targetNPC.transform);
+            // Walk close enough to hand over
+            yield return GoToRoutine(targetNPC.transform, handOverRange);
 
             // Transfer the object
             if (heldObject != null && targetNPC.itemSlot != null)
@@ -378,7 +430,7 @@ namespace LAS {
 
             if (playerTransform != null)
             {
-                yield return GoToRoutine(playerTransform);
+                yield return GoToRoutine(playerTransform, handOverRange);
                 yield return LookAtRoutine(playerTransform);
             }
 
@@ -489,6 +541,65 @@ namespace LAS {
             OnReturnedToIdle?.Invoke(this);
         }
 
+        /// <summary>
+        /// Coroutine that walks to a LocationTarget and places the held item in the matching ItemSlot.
+        /// Fires OnActionImpossible if not holding anything or if the location has no slot for the item.
+        /// Fires OnHandedObject on success (item considered "delivered").
+        /// </summary>
+        private IEnumerator PutDownRoutine(Transform locationTransform)
+        {
+            if (!IsHoldingObject)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] PutDown: not holding anything.");
+                NPCEventBus.BroadcastActionImpossible(GetNPCIndex(), "I'm not holding anything to put down.");
+                yield break;
+            }
+
+            var location = locationTransform?.GetComponent<LocationTarget>();
+            if (location == null)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] PutDown: target '{locationTransform?.name}' is not a LocationTarget.");
+                NPCEventBus.BroadcastActionImpossible(GetNPCIndex(), $"I can't place things at {locationTransform?.name}.");
+                yield break;
+            }
+
+            var item = heldObject.GetComponent<InteractableItem>();
+            var slot = item != null ? location.GetSlotForItem(item) : null;
+
+            if (slot == null)
+            {
+                string itemName = item != null ? item.TargetName : heldObject.name;
+                Debug.LogWarning($"[{npcController.npcName}] PutDown: '{location.TargetName}' has no slot for '{itemName}'.");
+                NPCEventBus.BroadcastActionImpossible(GetNPCIndex(),
+                    $"There's no designated spot for {itemName} at {location.TargetName}.");
+                yield break;
+            }
+
+            // Navigate to the location
+            yield return GoToRoutine(locationTransform, pickupRange);
+
+            // Place item in slot
+            var placing = heldObject;
+            heldObject = null;
+
+            if (slot.TryPlaceItem(item))
+            {
+                location.AddItem(item.TargetName);
+                OnHandedObject?.Invoke(this, placing);
+                Debug.Log($"[{npcController.npcName}] Placed '{item.TargetName}' at '{location.TargetName}'.");
+            }
+            else
+            {
+                // Slot rejected the item (e.g. became occupied between navigation and arrival)
+                heldObject = placing; // reclaim
+                NPCEventBus.BroadcastActionImpossible(GetNPCIndex(),
+                    $"The slot at {location.TargetName} is already occupied.");
+            }
+        }
+
+        /// <summary>Returns this NPC's index in NPCManager's registered list (via NPCController.AssignedIndex).</summary>
+        private int GetNPCIndex() => npcController != null ? npcController.AssignedIndex : -1;
+
         // ─── Helper: called by player XR interaction to take offered object ────────
 
         /// <summary>
@@ -592,6 +703,10 @@ namespace LAS {
 
                 case "REQUEST_FROM":
                     if (primary != null) routine = RequestFromRoutine(primary);
+                    break;
+
+                case "PUT_DOWN":
+                    if (primary != null) routine = PutDownRoutine(primary);
                     break;
 
                 case "RETURN_TO_IDLE":

@@ -20,3 +20,5 @@ MonoBehaviour:
   requiresSecondaryTarget: 0
   targetDescription: 
   secondaryTargetDescription: 
+  validTargetTypes: 
+  editorColor: {r: 0.9120602, g: 0.9528302, b: 0.112362035, a: 1}

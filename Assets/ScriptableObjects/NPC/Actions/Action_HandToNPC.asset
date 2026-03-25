@@ -23,7 +23,4 @@ MonoBehaviour:
     valid target names listed below.
   secondaryTargetDescription: 
   validTargetTypes: 00000000
-  editorColor: {r: 1, g: 1, b: 1, a: 1}
-  callback:
-    m_PersistentCalls:
-      m_Calls: []
+  editorColor: {r: 0.45966485, g: 0.014239941, b: 0.6037736, a: 1}

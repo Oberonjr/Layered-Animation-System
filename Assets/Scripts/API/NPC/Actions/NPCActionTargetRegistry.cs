@@ -79,8 +79,6 @@ namespace LAS
                 if (at.llmAliases.Count > 0)
                     IndexAliases(target, at.llmAliases);
             }
-
-            Debug.Log($"[TargetRegistry] Registered {target.Type}: '{name}'");
             UpdateRegistryDisplay();
         }
 
@@ -134,10 +132,7 @@ namespace LAS
 
             // 3a. Exact alias match (alias map is pre-lowercased)
             if (aliasMap.TryGetValue(lower, out IActionTarget aliasExact))
-            {
-                Debug.Log($"[TargetRegistry] Alias match: '{targetName}' → '{aliasExact.TargetName}'");
                 return aliasExact.Transform;
-            }
 
             // 3b. Partial alias match
             var aliasPartial = aliasMap
@@ -146,10 +141,7 @@ namespace LAS
                 .Select(kvp => kvp.Value)
                 .FirstOrDefault();
             if (aliasPartial != null)
-            {
-                Debug.Log($"[TargetRegistry] Alias partial: '{targetName}' → '{aliasPartial.TargetName}'");
                 return aliasPartial.Transform;
-            }
 
             // 4. Substring match on primary names
             var subMatch = allTargets.Values
@@ -158,10 +150,7 @@ namespace LAS
                 .OrderBy(x => System.Math.Abs(x.TargetName.Length - targetName.Length))
                 .FirstOrDefault();
             if (subMatch != null)
-            {
-                Debug.Log($"[TargetRegistry] Substring match: '{targetName}' → '{subMatch.TargetName}'");
                 return subMatch.Transform;
-            }
 
             // 5. Levenshtein fuzzy match — tolerates up to 2 character edits (min name length 4)
             IActionTarget fuzzyBest = null;
@@ -183,7 +172,7 @@ namespace LAS
 
             if (fuzzyBest != null)
             {
-                Debug.Log($"[TargetRegistry] Fuzzy match (dist={fuzzyBestDist}): '{targetName}' → '{fuzzyBest.TargetName}'");
+                Debug.LogWarning($"[TargetRegistry] Fuzzy match (dist={fuzzyBestDist}): '{targetName}' → '{fuzzyBest.TargetName}'");
                 return fuzzyBest.Transform;
             }
 
