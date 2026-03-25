@@ -1,0 +1,106 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6502283584940305760
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3838870057272501659}
+  - component: {fileID: 7646918861077508990}
+  - component: {fileID: 7115038337931981018}
+  m_Layer: 0
+  m_Name: DialogueManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3838870057272501659
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6502283584940305760}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7646918861077508990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6502283584940305760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c02e77fe1f5bca1478aeff20f6168db9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCManager
+  playerInputField: {fileID: 0}
+  sendButton: {fileID: 0}
+  chatContentParent: {fileID: 0}
+  chatMessagePrefab: {fileID: 238049159449196339, guid: 71a8a0d4b0fe71f4589622fe40677343, type: 3}
+  scenarioConfigFile: {fileID: 4900000, guid: d5b642fe5df12ab49a19da5fcca7e8c1, type: 3}
+  llmProvider: {fileID: 11400000, guid: f354b8bc7c2f8184999e5d61467210ed, type: 2}
+  dialogueOptions:
+    temperature: 0.7
+    topP: 0.9
+    topK: 40
+    maxTokens: 150
+    repeatPenalty: 1.1
+  actionOptions:
+    temperature: 0.1
+    topP: 0.9
+    topK: 10
+    maxTokens: 80
+    repeatPenalty: 1
+  enableSimulatedStreaming: 1
+  charactersPerSecond: 20
+  adaptiveStreaming: 1
+  contextHistoryLimit: 50
+  includeProgressionContext: 1
+  currentProgressionStep: 0
+  registeredNPCs: []
+  npcCharacterMap:
+    _serializedList:
+    - Key: Dr. Sarah Chen
+      Value: {fileID: 0}
+    - Key: Michael Rodriguez
+      Value: {fileID: 0}
+  generateAliasesOnStartup: 1
+  showDetailedDebug: 1
+  logPrompts: 1
+  logLLMResponses: 1
+--- !u!114 &7115038337931981018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6502283584940305760}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c62fb567290b3a41b51a6fe4b651739, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ConversationFlowController
+  enableAutoConversation: 1
+  npcFollowUpProbability: 1
+  maxConsecutiveNPCMessages: 5
+  minTimeBetweenNPCMessages: 3
+  maxTimeBetweenNPCMessages: 10
+  inputMode: 0
+  playerIdleTimeBeforePrompt: 25
+  typingDetectionDelay: 0.5
+  useContextualDecisions: 1
+  questionResponseProbability: 0.9
+  directAddressProbability: 0.95
+  showDebugLogs: 1
