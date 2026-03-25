@@ -1,61 +1,86 @@
 using System;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 public class IKLookAt : MonoBehaviour
 {
+    [Header("Head")]
     [SerializeField] private Transform headBone;
     [SerializeField] private float headPitchLimits;
     [SerializeField] private float headYawLimits;
     [SerializeField] private float headRollLimits;
+    private bool isHeadClamped;
 
-    [SerializeField] private Transform target;
+    [Header("Torso")] 
+    [SerializeField] private Transform torsoBone;
+    [SerializeField] private float torsoPitchLimits;
+    [SerializeField] private float torsoYawLimits;
+    [SerializeField] private float torsoRollLimits;
     
-    private Quaternion angle;
+    [Space(10)]
+    [SerializeField] private float rotationSpeed;
 
+    private bool isTorsoClamped;
+    private bool isTorsoCentered = true;
 
-    private float baseYaw = 90;
-    private float baseRoll = 270;
+    private Vector3 targetRotation;
     
-    private void Update()
-    {
-        LookAt(target);
-    }
-
-    public void LookAt(Transform target)
-    {
-        angle = Quaternion.LookRotation(target.position - headBone.position);
-
-        //Debug.Log(angle.eulerAngles);
-    }
-
     private void LateUpdate()
     {
-        headBone.rotation = ToModelCoordinates(angle);
+        RotateHead(targetRotation);
+        
+        if(isHeadClamped || !isTorsoCentered)
+            RotateTorso(targetRotation - headBone.localEulerAngles);
     }
 
-
-    private Quaternion ToModelCoordinates(Quaternion rotation)
+    public void LookAt(Transform lookAtTarget)
     {
-        Quaternion output = new Quaternion();
-        Quaternion modifier = new Quaternion();
-        modifier.eulerAngles = new Vector3(0, 90, -90);
+        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position + Vector3.up - headBone.position);
         
-        modifier.eulerAngles += new Vector3(0, rotation.eulerAngles.y, rotation.eulerAngles.x);
-
-        output.eulerAngles = ClampHeadRotation(modifier.eulerAngles);
-
-        return output;
+        targetRotation = angle.eulerAngles - Quaternion.LookRotation(transform.forward).eulerAngles;
     }
 
-    private Vector3 ClampHeadRotation(Vector3 vectorToClamp)
+    private void RotateHead(Vector3 angle)
     {
-        Debug.Log(vectorToClamp);
-        Debug.Log(vectorToClamp.y - baseYaw + "Yaw");
-        Debug.Log(vectorToClamp.z - baseRoll + "Roll");
+        isHeadClamped = IsClamped(angle.y, headYawLimits);
+
+        headBone.localEulerAngles = ClampRotation(angle, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+    }
+
+    private void RotateTorso(Vector3 angle)
+    {
+        torsoBone.localEulerAngles = ClampRotation(angle, new Vector3(torsoPitchLimits, torsoYawLimits, torsoRollLimits));
         
+        isTorsoCentered = torsoBone.localEulerAngles == Vector3.zero;
+    }
+
+    private Vector3 ClampRotation(Vector3 vectorToClamp, Vector3 clampLimits)
+    {
         return new Vector3(
-            Mathf.Clamp(vectorToClamp.x, -headPitchLimits, headPitchLimits),
-            Mathf.Clamp(vectorToClamp.y - baseYaw, headYawLimits, headYawLimits) + baseYaw,
-            Mathf.Clamp(vectorToClamp.z - baseRoll, headRollLimits, headRollLimits) + baseRoll);
+            ClampRotationAxis(vectorToClamp.x, clampLimits.x),
+            ClampRotationAxis(vectorToClamp.y, clampLimits.y),
+            ClampRotationAxis(vectorToClamp.z, clampLimits.z));
+    }
+
+    //Clamps rotation in a 360 degree system (e.g. between 270 and 90 degrees / -90 and 90 degrees)
+    private float ClampRotationAxis(float angleToClamp, float clampLimit)
+    {
+        if(angleToClamp < 0)
+            angleToClamp += 360;
+        
+        float outputAngle;
+        if(angleToClamp <= 360 - clampLimit && angleToClamp > 180)
+            outputAngle = 360 - clampLimit;
+        else if (angleToClamp >= clampLimit && angleToClamp < 180)
+            outputAngle = clampLimit;
+        else
+            outputAngle = angleToClamp;
+        
+        return outputAngle;
+    }
+
+    private bool IsClamped(float angleToCheck, float angleClamp)
+    {
+        return angleToCheck > angleClamp && angleToCheck < 360 - angleClamp;
     }
 }

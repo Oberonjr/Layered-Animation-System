@@ -28,6 +28,11 @@ namespace LAS {
     [RequireComponent(typeof(NPCController))]
     public class NPCBehaviourController : MonoBehaviour
     {
+        [SerializeField] private IKLookAt lookAtScript;
+        [SerializeField] private Animator animator;
+
+        private Coroutine lookAtCoroutine;
+        
         [Header("Item Slot")]
         [Tooltip("The transform where held objects are attached (e.g. right hand bone or empty child). Objects will be parented to this transform and positioned at its local origin when picked up.")]
         [SerializeField] private Transform itemSlot;
@@ -40,8 +45,13 @@ namespace LAS {
         [SerializeField] private float lookStopAngleThreshold = 2f;
 
         [Header("Navigation Settings")]
+<<<<<<< HEAD
         [Tooltip("The default distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters). Used by GO_TO and RETURN_TO_IDLE.")]
         [SerializeField] private float arrivalDistance = 0.5f;
+=======
+        [Tooltip("The distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters).")]
+        [SerializeField] private float arrivalDistance = 1.5f;
+>>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
 
         [Tooltip("How close the NPC must get before picking up an object. Keep slightly larger than the item's collision radius.")]
         [SerializeField] private float pickupRange = 1.2f;
@@ -400,7 +410,9 @@ namespace LAS {
         {
             while (true)
             {
-                Vector3 direction = (target.position - transform.position).normalized;
+                lookAtScript.LookAt(target);
+                
+                /*Vector3 direction = (target.position - transform.position).normalized;
                 direction.y = 0f;
 
                 if (direction == Vector3.zero) yield break;
@@ -409,7 +421,7 @@ namespace LAS {
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookRotationSpeed);
 
                 if (Quaternion.Angle(transform.rotation, targetRotation) < lookStopAngleThreshold)
-                    yield break;
+                    yield break;*/
 
                 yield return null;
             }
@@ -424,10 +436,17 @@ namespace LAS {
         /// farther than the default arrivalDistance (e.g. pickupRange, handOverRange).</param>
         private IEnumerator GoToRoutine(Transform target, float range = -1f)
         {
+<<<<<<< HEAD
             float effectiveRange = range > 0f ? range : arrivalDistance;
 
             // Ensure the agent's own stoppingDistance doesn't fight our range check.
             agent.stoppingDistance = 0f;
+=======
+            animator.SetTrigger("StartWalking");
+            
+            lookAtCoroutine = StartCoroutine(LookAtRoutine(target));
+            
+>>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
             agent.SetDestination(target.position);
 
             float startTime = Time.time;
@@ -440,10 +459,13 @@ namespace LAS {
             {
                 if (Time.time - startTime > goToTimeoutSeconds)
                 {
+                    animator.SetTrigger("StopWalking");
                     Debug.LogWarning($"[{npcController.npcName}] GoTo timed out after {goToTimeoutSeconds}s navigating to '{target.name}'.");
                     agent.ResetPath();
+                    StopCoroutine(lookAtCoroutine);
                     yield break;
                 }
+<<<<<<< HEAD
 
                 // Still calculating path — keep waiting.
                 if (agent.pathPending)
@@ -462,9 +484,17 @@ namespace LAS {
 
                 // Arrived within range.
                 if (agent.remainingDistance <= effectiveRange)
+=======
+                
+                if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
+>>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
                 {
+                    Debug.Log(agent.remainingDistance);
+                    
+                    animator.SetTrigger("StopWalking");
                     agent.ResetPath();
                     OnArrivedAtTarget?.Invoke(this, target);
+                    StopCoroutine(lookAtCoroutine);
                     yield break;
                 }
 
