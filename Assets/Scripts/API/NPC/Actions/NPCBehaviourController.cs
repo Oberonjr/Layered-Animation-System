@@ -224,7 +224,7 @@ public class NPCBehaviourController : MonoBehaviour
             direction.y = 0f;
 
             if (direction == Vector3.zero) yield break;
-
+            
             Quaternion targetRotation = Quaternion.LookRotation(direction);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookRotationSpeed);
 
