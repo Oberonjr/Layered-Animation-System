@@ -136,7 +136,140 @@ namespace LAS {
             // Get all Player-type targets
             var players = registry.GetTargetsByType(TargetType.Player).ToList();
 
-            if (players.Count == 0)
+    /// <summary>
+    /// Makes the NPC rotate to look at a specific transform.
+    /// Uses smooth rotation (slerp) until facing the target within the angle threshold.
+    /// Cancels any currently running behavior.
+    /// </summary>
+    /// <param name="target">The transform to look at.</param>
+    public void LookAt(Transform target)
+    {
+        if (target == null) return;
+        SwitchBehaviour(LookAtRoutine(target));
+    }
+
+    /// <summary>
+    /// Makes the NPC navigate to a target position using NavMesh pathfinding.
+    /// Fires OnArrivedAtTarget event when the NPC reaches the destination.
+    /// Cancels any currently running behavior.
+    /// </summary>
+    /// <param name="target">The transform to navigate to.</param>
+    public void GoTo(Transform target)
+    {
+        if (target == null) return;
+        SwitchBehaviour(GoToRoutine(target));
+    }
+
+    /// <summary>
+    /// Makes the NPC walk to an object and pick it up.
+    /// The object is parented to the NPC's item slot and physics are disabled.
+    /// Fires OnPickedUpObject event when complete.
+    /// </summary>
+    /// <param name="target">The object to pick up (should be an InteractableObject).</param>
+    public void PickUp(Transform target)
+    {
+        if (target == null) return;
+        SwitchBehaviour(PickUpRoutine(target));
+    }
+
+    /// <summary>
+    /// Walk to an NPC and place held object in their item slot.
+    /// </summary>
+    public void HandToNPC(NPCBehaviourController targetNPC)
+    {
+        if (targetNPC == null) return;
+        if (!IsHoldingObject)
+        {
+            Debug.LogWarning($"[{npcController.npcName}] HandToNPC: not holding anything.");
+            return;
+        }
+        SwitchBehaviour(HandToNPCRoutine(targetNPC));
+    }
+
+    /// <summary>
+    /// Hold the object out in front, waiting for the player to take it.
+    /// In VR this is how a player receives an object.
+    /// </summary>
+    public void HandToPlayer()
+    {
+        if (!IsHoldingObject)
+        {
+            Debug.LogWarning($"[{npcController.npcName}] HandToPlayer: not holding anything.");
+            return;
+        }
+        SwitchBehaviour(HandToPlayerRoutine());
+    }
+
+    /// <summary>
+    /// Walk to a target NPC and take the object they are holding.
+    /// The object is transferred from the target's item slot to this NPC's item slot.
+    /// Warns if the target is not holding anything.
+    /// </summary>
+    /// <param name="targetNPC">The NPC to grab the object from.</param>
+    public void GrabFrom(NPCBehaviourController targetNPC)
+    {
+        if (targetNPC == null) return;
+        SwitchBehaviour(GrabFromRoutine(targetNPC));
+    }
+
+    /// <summary>
+    /// Face the target and gesture toward them - signal you want their object.
+    /// The target NPC decides whether to hand it over.
+    /// </summary>
+    public void RequestFrom(Transform target)
+    {
+        if (target == null) return;
+        SwitchBehaviour(RequestFromRoutine(target));
+    }
+
+    /// <summary>
+    /// Makes the NPC return to their idle/home position (if set) and reset their state.
+    /// Clears the navigation path and stops offering any held objects.
+    /// Fires OnReturnedToIdle event when complete.
+    /// </summary>
+    public void ReturnToIdle()
+    {
+        SwitchBehaviour(ReturnToIdleRoutine());
+    }
+
+    // ─── Coroutine Implementations ────────────────────────────────────────────
+
+    /// <summary>
+    /// Coroutine that smoothly rotates the NPC to face a target.
+    /// Runs each frame until the angle to target is within the threshold.
+    /// </summary>
+    /// <param name="target">The transform to look at.</param>
+    private IEnumerator LookAtRoutine(Transform target)
+    {
+        while (true)
+        {
+            Vector3 direction = (target.position - transform.position).normalized;
+            direction.y = 0f;
+
+            if (direction == Vector3.zero) yield break;
+            
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookRotationSpeed);
+
+            if (Quaternion.Angle(transform.rotation, targetRotation) < lookStopAngleThreshold)
+                yield break;
+
+            yield return null;
+        }
+    }
+
+    /// <summary>
+    /// Coroutine that navigates the NPC to a target position using NavMeshAgent.
+    /// Waits until the NPC reaches the arrival distance, then fires OnArrivedAtTarget event.
+    /// </summary>
+    /// <param name="target">The transform to navigate to.</param>
+    private IEnumerator GoToRoutine(Transform target)
+    {
+        agent.SetDestination(target.position);
+
+        while (true)
+        {
+            if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
             {
                 Debug.LogWarning($"[{npcController.npcName}] LookAtPlayer: No Player found in registry.");
                 return;
