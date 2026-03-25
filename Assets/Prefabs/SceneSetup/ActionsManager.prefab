@@ -1,0 +1,235 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &375953118709718199
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6920551600925086201}
+  - component: {fileID: 1644902570259048805}
+  - component: {fileID: 1998941888409671897}
+  - component: {fileID: 676688259182290410}
+  m_Layer: 0
+  m_Name: ActionsManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6920551600925086201
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 375953118709718199}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1644902570259048805
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 375953118709718199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26bcac9bd3330d246a46d75c2a52961f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCActionTargetRegistry
+  registryContents: Registry will populate at runtime...
+--- !u!114 &1998941888409671897
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 375953118709718199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0d8ce2c70df3224bb9fe7bb8b1428cf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCActionDispatcher
+  actionHandlers:
+    _serializedList:
+    - Key: {fileID: 11400000, guid: a702d9523e77d8f4aa83a9fb10487386, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: 
+            m_MethodName: 
+            m_Mode: 1
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: 
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 919813c1a8666304f90a7afa56d4b6af, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteGoTo
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 9ffe5a01180b424429cb9401f00649d9, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteGrabFrom
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 5cb5b18226ab0d84681b799ab3dcf4f5, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteHandToNPC
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 747a2cc337a5ff046b50bc4e1b8f87bb, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteHandToPlayer
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: af9feeea755753948abf359d8d130a14, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteLookAt
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 9650425fc84992543a79da6f51782573, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteLookAtPlayer
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 9be570d36d493ff4a839bc26fe5a8fd5, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecutePickUp
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: a929a1e37ccae9f45b4385eb8b8dcd0c, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteRequestFrom
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+    - Key: {fileID: 11400000, guid: 63921f34d342e9149b5b4fdecdef4fd9, type: 2}
+      Value:
+        m_PersistentCalls:
+          m_Calls:
+          - m_Target: {fileID: 676688259182290410}
+            m_TargetAssemblyTypeName: ActionBridge, Assembly-CSharp
+            m_MethodName: ExecuteReturnToIdle
+            m_Mode: 0
+            m_Arguments:
+              m_ObjectArgument: {fileID: 0}
+              m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+              m_IntArgument: 0
+              m_FloatArgument: 0
+              m_StringArgument: 
+              m_BoolArgument: 0
+            m_CallState: 2
+--- !u!114 &676688259182290410
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 375953118709718199}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 266741408aa53f34cb8fcfe5f73f5d47, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ActionBridge
