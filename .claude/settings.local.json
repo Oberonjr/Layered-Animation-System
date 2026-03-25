@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tr -cd '{}')",
+      "mcp__ide__getDiagnostics"
+    ]
+  }
+}

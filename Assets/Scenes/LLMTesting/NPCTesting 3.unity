@@ -993,15 +993,20 @@ MonoBehaviour:
   sendButton: {fileID: 145538544}
   chatContentParent: {fileID: 180983893}
   chatMessagePrefab: {fileID: 238049159449196339, guid: 71a8a0d4b0fe71f4589622fe40677343, type: 3}
-  scenarioConfigFile: {fileID: 4900000, guid: 0417f127674e917449e19f34cd12b4d1, type: 3}
-  baseUrl: 
-  availableModels: []
-  selectedModelIndex: 0
-  temperature: 0.7
-  topP: 0.9
-  topK: 40
-  maxTokensPerMessage: 450
-  repeatPenalty: 1.25
+  scenarioConfigFile: {fileID: 4900000, guid: d5b642fe5df12ab49a19da5fcca7e8c1, type: 3}
+  llmProvider: {fileID: 11400000, guid: b2bb2f81ff7956c49bafd514d9bbf8f2, type: 2}
+  dialogueOptions:
+    temperature: 0.7
+    topP: 0.9
+    topK: 40
+    maxTokens: 150
+    repeatPenalty: 1.1
+  actionOptions:
+    temperature: 0.1
+    topP: 0.9
+    topK: 10
+    maxTokens: 80
+    repeatPenalty: 1
   enableSimulatedStreaming: 1
   charactersPerSecond: 20
   adaptiveStreaming: 1
@@ -1009,6 +1014,16 @@ MonoBehaviour:
   includeProgressionContext: 1
   currentProgressionStep: 0
   registeredNPCs: []
+  npcCharacterMap:
+    _serializedList:
+    - Key: Dr. Sarah Chen
+      Value: {fileID: 565452783}
+    - Key: Michael Rodriguez
+      Value: {fileID: 1894651080}
+  generateAliasesOnStartup: 1
+  showDetailedDebug: 1
+  logPrompts: 1
+  logLLMResponses: 1
 --- !u!114 &403859198
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1338,6 +1353,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
   npcName: 
+  npcAliases: []
   characterRole: 
   characterDescription: 
   capsuleRenderer: {fileID: 565452785}
@@ -1458,7 +1474,9 @@ MonoBehaviour:
   lookRotationSpeed: 5
   lookStopAngleThreshold: 2
   arrivalDistance: 0.5
+  goToTimeoutSeconds: 15
   idlePosition: {fileID: 1772655547}
+  playerHandoffMode: 1
   offerOffset: {x: 0, y: 1, z: 0.6}
 --- !u!195 &565452789
 NavMeshAgent:
@@ -1998,11 +2016,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 893691679}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: 029f113744c6baa42823ef3643cc1637, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
-  targetType: 2
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.LocationTarget
   customName: patient bed
+  aliases:
+  - Patient bed
+  - Bed
+  llmAliases: []
+  occupants: []
+  itemsHere: []
 --- !u!1 &948308631
 GameObject:
   m_ObjectHideFlags: 0
@@ -2511,11 +2534,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 1153802750}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: 30defc0c18142d34faedc4b91efc598f, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
-  targetType: 1
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.PlayerTarget
   customName: Player
+  aliases:
+  - Player
+  - Me
+  - Student
+  llmAliases: []
 --- !u!1 &1180158568
 GameObject:
   m_ObjectHideFlags: 0
@@ -3228,11 +3255,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1460977688}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: 029f113744c6baa42823ef3643cc1637, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
-  targetType: 2
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.LocationTarget
   customName: instrument tray
+  aliases:
+  - Instrument tray
+  - Table
+  llmAliases: []
+  occupants: []
+  itemsHere: []
 --- !u!1 &1491631442
 GameObject:
   m_ObjectHideFlags: 0
@@ -3702,6 +3734,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
   npcName: 
+  npcAliases: []
   characterRole: 
   characterDescription: 
   capsuleRenderer: {fileID: 1894651082}
@@ -3822,7 +3855,9 @@ MonoBehaviour:
   lookRotationSpeed: 5
   lookStopAngleThreshold: 2
   arrivalDistance: 0.5
+  goToTimeoutSeconds: 15
   idlePosition: {fileID: 1239620000}
+  playerHandoffMode: 1
   offerOffset: {x: 0, y: 1, z: 0.6}
 --- !u!195 &1894651086
 NavMeshAgent:
@@ -3928,7 +3963,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1413635510}
   m_HandleRect: {fileID: 1413635509}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -4126,11 +4161,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 2036486655}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 87f4d3e59de2107418a21c4829c59323, type: 3}
+  m_Script: {fileID: 11500000, guid: c8c43b42717e6404186145472199c665, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ActionTarget
-  targetType: 3
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.InteractableItem
   customName: scalpel
+  aliases: []
+  llmAliases: []
+  isHeld: 0
+  heldByNPC: 
+  currentLocation: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
