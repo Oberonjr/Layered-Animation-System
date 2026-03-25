@@ -55,6 +55,34 @@ namespace LAS
     }
 
     /// <summary>
+    /// One step in a multi-step action sequence returned by Step 2 (action classification).
+    /// </summary>
+    [Serializable]
+    public class NPCActionStep
+    {
+        /// <summary>Action key matching an NPCActionDefinition. "NONE" is valid and skipped by the dispatcher.</summary>
+        public string action_key;
+
+        /// <summary>Primary target name from the registry. Empty when the action requires no target.</summary>
+        public string action_target;
+
+        /// <summary>Secondary target name for two-party actions. Empty for most actions.</summary>
+        public string action_secondary_target;
+    }
+
+    /// <summary>
+    /// Ordered sequence of action steps produced by Step 2 (action classification).
+    /// Supports single-step actions as well as multi-step chains
+    /// (e.g. PICK_UP → HAND_TO_PLAYER when the player asks "give me the scalpel").
+    /// </summary>
+    [Serializable]
+    public class NPCActionSequence
+    {
+        /// <summary>Ordered list of steps to execute. Dispatcher processes them in index order.</summary>
+        public NPCActionStep[] actions;
+    }
+
+    /// <summary>
     /// Enum defining the type of chat message for UI display formatting.
     /// </summary>
     public enum MessageType

@@ -12,14 +12,16 @@ namespace LAS
 
             var presetProp        = serializedObject.FindProperty("preset");
             var customBaseUrlProp = serializedObject.FindProperty("customBaseUrl");
+            var apiKeyNameProp    = serializedObject.FindProperty("apiKeyName");
 
-            // Draw every field except customBaseUrl, which we handle manually.
+            // Draw every field except customBaseUrl (shown conditionally) and apiKeyName (shown in key section).
             var prop = serializedObject.GetIterator();
-            prop.NextVisible(true); // enter first child (m_Script)
+            prop.NextVisible(true);
 
             while (prop.NextVisible(false))
             {
                 if (prop.name == "customBaseUrl") continue;
+                if (prop.name == "apiKeyName")    continue;
                 EditorGUILayout.PropertyField(prop, true);
             }
 
@@ -27,7 +29,15 @@ namespace LAS
             if (presetProp.enumValueIndex == (int)OpenAIChatProvider.ProviderPreset.Custom)
                 EditorGUILayout.PropertyField(customBaseUrlProp);
 
+            // API key name field (which key to read from the external file)
+            EditorGUILayout.PropertyField(apiKeyNameProp);
+
             serializedObject.ApplyModifiedProperties();
+
+            // Show key file UI (shared with Claude editor)
+            string keyName = apiKeyNameProp.stringValue;
+            ClaudeProviderEditor.DrawApiKeySection(
+                string.IsNullOrEmpty(keyName) ? "OPENAI_API_KEY" : keyName);
         }
     }
 }

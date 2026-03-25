@@ -7,101 +7,216 @@ namespace LAS
 {
     /// <summary>
     /// Singleton registry for all action targets in the scene.
-    /// IActionTarget implementations register themselves here on Start.
-    /// Provides categorized lookups by TargetType and name-based resolution for the action system.
-    /// Maintains both a name-based lookup and a type-categorized list for efficient querying.
+    /// ActionTarget components register themselves here on Start.
+    ///
+    /// Resolution order for Resolve(name):
+    ///   1. Exact primary-name match
+    ///   2. Case-insensitive primary-name match
+    ///   3. Alias map (exact, then partial)
+    ///   4. Substring match on primary names
+    ///   5. Levenshtein fuzzy match (tolerates up to 2 character edits)
     /// </summary>
     public class NPCActionTargetRegistry : MonoBehaviour
     {
-        /// <summary>
-        /// Singleton instance of the NPCActionTargetRegistry, accessible from anywhere in the code.
-        /// Used by ActionTarget components, NPCActionDispatcher, and NPCBehaviourController.
-        /// </summary>
         public static NPCActionTargetRegistry Instance { get; private set; }
 
         [Header("Runtime Registry (Read-Only)")]
-        [Tooltip("Debug display showing all registered targets organized by type. This updates automatically in Play mode.")]
-        [SerializeField][TextArea(10, 20)] private string registryContents = "Registry will populate at runtime...";
+        [Tooltip("Debug display — all registered targets and their aliases. Updates at runtime.")]
+        [SerializeField][TextArea(10, 25)] private string registryContents = "Registry will populate at runtime...";
 
-        /// <summary>Dictionary mapping target names to their IActionTarget implementations for O(1) name-based lookup.</summary>
+        // Primary name → target
         private Dictionary<string, IActionTarget> allTargets = new Dictionary<string, IActionTarget>();
 
-        /// <summary>Dictionary organizing targets by their TargetType for efficient filtered queries.</summary>
-        private Dictionary<TargetType, List<IActionTarget>> targetsByType = new Dictionary<TargetType, List<IActionTarget>>();
+        // Alias (lower-case) → target  (populated by Register and RegisterAliases)
+        private Dictionary<string, IActionTarget> aliasMap = new Dictionary<string, IActionTarget>();
 
-        /// <summary>
-        /// Initializes the singleton instance and prepares categorized lists for each TargetType.
-        /// Ensures only one registry exists in the scene.
-        /// </summary>
+        // Type-bucketed lookup
+        private Dictionary<TargetType, List<IActionTarget>> targetsByType
+            = new Dictionary<TargetType, List<IActionTarget>>();
+
+        // ── Unity lifecycle ───────────────────────────────────────────────────────
+
         void Awake()
         {
             if (Instance != null && Instance != this)
             {
-                Debug.LogWarning("[TargetRegistry] Duplicate registry - destroying.");
                 Destroy(gameObject);
                 return;
             }
             Instance = this;
 
-            // Initialize categorized lists
             foreach (TargetType type in System.Enum.GetValues(typeof(TargetType)))
                 targetsByType[type] = new List<IActionTarget>();
         }
 
-        /// <summary>
-        /// Updates the inspector display text every frame during Play mode.
-        /// Shows all registered targets organized by type for debugging.
-        /// </summary>
         void Update()
         {
-            // Update inspector display every frame in Play mode
             if (Application.isPlaying)
                 UpdateRegistryDisplay();
         }
 
+        // ── Registration ─────────────────────────────────────────────────────────
+
         /// <summary>
-        /// Registers a target with the registry, making it available for NPC actions.
-        /// Called automatically by IActionTarget implementations (e.g., ActionTarget component) on Start.
-        /// Warns if a duplicate name is found (overwrites the previous entry).
+        /// Registers a target by its primary TargetName and indexes any inspector-defined aliases.
         /// </summary>
-        /// <param name="target">The IActionTarget implementation to register.</param>
         public void Register(IActionTarget target)
         {
             if (target == null) return;
 
             string name = target.TargetName;
             if (allTargets.ContainsKey(name))
-            {
                 Debug.LogWarning($"[TargetRegistry] Duplicate target name: '{name}'. Overwriting.");
-            }
 
             allTargets[name] = target;
             targetsByType[target.Type].Add(target);
+
+            // Index all existing aliases (inspector-defined and any previously LLM-generated)
+            if (target is ActionTarget at)
+            {
+                if (at.aliases.Count > 0)
+                    IndexAliases(target, at.aliases);
+                if (at.llmAliases.Count > 0)
+                    IndexAliases(target, at.llmAliases);
+            }
 
             Debug.Log($"[TargetRegistry] Registered {target.Type}: '{name}'");
             UpdateRegistryDisplay();
         }
 
-        /// <summary>
-        /// Removes a target from the registry.
-        /// Called automatically by IActionTarget implementations (e.g., ActionTarget component) on OnDestroy.
-        /// </summary>
-        /// <param name="target">The IActionTarget implementation to unregister.</param>
+        /// <summary>Removes a target and all its aliases from the registry.</summary>
         public void Unregister(IActionTarget target)
         {
             if (target == null) return;
 
-            string name = target.TargetName;
-            allTargets.Remove(name);
+            allTargets.Remove(target.TargetName);
             targetsByType[target.Type].Remove(target);
+
+            var keysToRemove = aliasMap
+                .Where(kvp => kvp.Value == target)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            foreach (var k in keysToRemove) aliasMap.Remove(k);
+
             UpdateRegistryDisplay();
         }
 
         /// <summary>
-        /// Builds a formatted string showing all registered targets organized by type.
-        /// Updates the registryContents field for display in the Inspector.
-        /// Called whenever targets are registered/unregistered and each frame during Play mode.
+        /// Registers additional aliases for an already-registered target.
+        /// Called by AliasGenerator after LLM alias generation completes.
         /// </summary>
+        public void RegisterAliases(IActionTarget target, IEnumerable<string> aliases)
+        {
+            if (target == null || aliases == null) return;
+            IndexAliases(target, aliases);
+            UpdateRegistryDisplay();
+        }
+
+        // ── Lookup ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Resolves a name string to the matching target's Transform.
+        /// Uses five successive strategies before giving up.
+        /// </summary>
+        public Transform Resolve(string targetName)
+        {
+            if (string.IsNullOrEmpty(targetName)) return null;
+
+            // 1. Exact primary match (fastest path)
+            if (allTargets.TryGetValue(targetName, out IActionTarget t)) return t.Transform;
+
+            // 2. Case-insensitive primary match
+            var ciMatch = allTargets.Values.FirstOrDefault(x =>
+                string.Equals(x.TargetName, targetName, System.StringComparison.OrdinalIgnoreCase));
+            if (ciMatch != null) return ciMatch.Transform;
+
+            string lower = targetName.ToLowerInvariant();
+
+            // 3a. Exact alias match (alias map is pre-lowercased)
+            if (aliasMap.TryGetValue(lower, out IActionTarget aliasExact))
+            {
+                Debug.Log($"[TargetRegistry] Alias match: '{targetName}' → '{aliasExact.TargetName}'");
+                return aliasExact.Transform;
+            }
+
+            // 3b. Partial alias match
+            var aliasPartial = aliasMap
+                .Where(kvp => kvp.Key.Contains(lower) || lower.Contains(kvp.Key))
+                .OrderBy(kvp => System.Math.Abs(kvp.Key.Length - lower.Length))
+                .Select(kvp => kvp.Value)
+                .FirstOrDefault();
+            if (aliasPartial != null)
+            {
+                Debug.Log($"[TargetRegistry] Alias partial: '{targetName}' → '{aliasPartial.TargetName}'");
+                return aliasPartial.Transform;
+            }
+
+            // 4. Substring match on primary names
+            var subMatch = allTargets.Values
+                .Where(x => x.TargetName.ToLowerInvariant().Contains(lower) ||
+                             lower.Contains(x.TargetName.ToLowerInvariant()))
+                .OrderBy(x => System.Math.Abs(x.TargetName.Length - targetName.Length))
+                .FirstOrDefault();
+            if (subMatch != null)
+            {
+                Debug.Log($"[TargetRegistry] Substring match: '{targetName}' → '{subMatch.TargetName}'");
+                return subMatch.Transform;
+            }
+
+            // 5. Levenshtein fuzzy match — tolerates up to 2 character edits (min name length 4)
+            IActionTarget fuzzyBest = null;
+            int fuzzyBestDist = int.MaxValue;
+
+            foreach (var candidate in allTargets.Values)
+            {
+                string cname = candidate.TargetName.ToLowerInvariant();
+                if (cname.Length < 4) continue;
+                int dist = Levenshtein(lower, cname);
+                if (dist <= 2 && dist < fuzzyBestDist) { fuzzyBestDist = dist; fuzzyBest = candidate; }
+            }
+            foreach (var kvp in aliasMap)
+            {
+                if (kvp.Key.Length < 4) continue;
+                int dist = Levenshtein(lower, kvp.Key);
+                if (dist <= 2 && dist < fuzzyBestDist) { fuzzyBestDist = dist; fuzzyBest = kvp.Value; }
+            }
+
+            if (fuzzyBest != null)
+            {
+                Debug.Log($"[TargetRegistry] Fuzzy match (dist={fuzzyBestDist}): '{targetName}' → '{fuzzyBest.TargetName}'");
+                return fuzzyBest.Transform;
+            }
+
+            Debug.LogWarning($"[TargetRegistry] Target not found: '{targetName}'");
+            return null;
+        }
+
+        /// <summary>Returns the IActionTarget with the given primary name, or null.</summary>
+        public IActionTarget GetByPrimaryName(string name)
+        {
+            allTargets.TryGetValue(name, out var t);
+            return t;
+        }
+
+        public IEnumerable<IActionTarget> GetTargetsByType(TargetType type)
+            => targetsByType.ContainsKey(type) ? targetsByType[type] : Enumerable.Empty<IActionTarget>();
+
+        public IEnumerable<IActionTarget> GetAllTargets() => allTargets.Values;
+        public IEnumerable<string> GetAllTargetNames() => allTargets.Keys;
+
+        // ── Internal helpers ──────────────────────────────────────────────────────
+
+        private void IndexAliases(IActionTarget target, IEnumerable<string> names)
+        {
+            foreach (string alias in names)
+            {
+                string key = alias?.Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(key)) continue;
+                if (!aliasMap.ContainsKey(key))
+                    aliasMap[key] = target;
+            }
+        }
+
         private void UpdateRegistryDisplay()
         {
             var sb = new System.Text.StringBuilder();
@@ -113,9 +228,16 @@ namespace LAS
                 if (targets.Count == 0) continue;
 
                 sb.AppendLine($"▼ {type} ({targets.Count})");
-                foreach (var t in targets.OrderBy(x => x.TargetName))
+                foreach (var target in targets.OrderBy(x => x.TargetName))
                 {
-                    sb.AppendLine($"  • {t.TargetName}");
+                    sb.Append($"  • {target.TargetName}");
+                    if (target is ActionTarget at)
+                    {
+                        var allAliases = at.GetAllAliases().ToList();
+                        if (allAliases.Count > 0)
+                            sb.Append($"  [{string.Join(", ", allAliases)}]");
+                    }
+                    sb.AppendLine();
                 }
                 sb.AppendLine();
             }
@@ -124,64 +246,33 @@ namespace LAS
         }
 
         /// <summary>
-        /// Resolves a target name string to its Transform component.
-        /// Used by NPCActionDispatcher to convert LLM-provided target names into actual transforms.
-        /// Performs case-insensitive matching if exact match fails.
+        /// Levenshtein edit distance — used as a last-resort fuzzy match.
+        /// Early-exits if the length difference exceeds 3 (can't be within threshold).
         /// </summary>
-        /// <param name="targetName">The name of the target to resolve.</param>
-        /// <returns>The Transform of the matching target, or null if not found.</returns>
-        public Transform Resolve(string targetName)
+        private static int Levenshtein(string s, string t)
         {
-            if (string.IsNullOrEmpty(targetName)) return null;
+            int m = s.Length, n = t.Length;
+            if (m == 0) return n;
+            if (n == 0) return m;
+            if (System.Math.Abs(m - n) > 3) return int.MaxValue;
 
-            // 1. Exact match (fastest path).
-            if (allTargets.TryGetValue(targetName, out IActionTarget target))
-                return target.Transform;
+            int[] prev = new int[n + 1];
+            int[] curr = new int[n + 1];
+            for (int j = 0; j <= n; j++) prev[j] = j;
 
-            // 2. Case-insensitive exact match.
-            var match = allTargets.Values.FirstOrDefault(t =>
-                string.Equals(t.TargetName, targetName, System.StringComparison.OrdinalIgnoreCase));
-            if (match != null) return match.Transform;
-
-            // 3. Contains match — handles LLM partial names (e.g. "scalpel" → "Scalpel_01").
-            //    Prefer the registered name whose length is closest to the query to avoid over-broad matches.
-            string lower = targetName.ToLower();
-            var containsMatch = allTargets.Values
-                .Where(t => t.TargetName.ToLower().Contains(lower) || lower.Contains(t.TargetName.ToLower()))
-                .OrderBy(t => Mathf.Abs(t.TargetName.Length - targetName.Length))
-                .FirstOrDefault();
-
-            if (containsMatch != null)
+            for (int i = 1; i <= m; i++)
             {
-                Debug.Log($"[TargetRegistry] Fuzzy match: '{targetName}' → '{containsMatch.TargetName}'");
-                return containsMatch.Transform;
+                curr[0] = i;
+                for (int j = 1; j <= n; j++)
+                {
+                    int cost = s[i - 1] == t[j - 1] ? 0 : 1;
+                    curr[j] = System.Math.Min(
+                        System.Math.Min(curr[j - 1] + 1, prev[j] + 1),
+                        prev[j - 1] + cost);
+                }
+                var tmp = prev; prev = curr; curr = tmp;
             }
-
-            Debug.LogWarning($"[TargetRegistry] Target not found: '{targetName}'");
-            return null;
+            return prev[n];
         }
-
-        /// <summary>
-        /// Gets all registered targets of a specific type.
-        /// Used by NPCBehaviourController (e.g., to find Player-type targets) and editor tools.
-        /// </summary>
-        /// <param name="type">The TargetType to filter by.</param>
-        /// <returns>An enumerable of all targets matching the specified type.</returns>
-        public IEnumerable<IActionTarget> GetTargetsByType(TargetType type)
-            => targetsByType.ContainsKey(type) ? targetsByType[type] : System.Linq.Enumerable.Empty<IActionTarget>();
-
-        /// <summary>
-        /// Gets all registered targets regardless of type.
-        /// Used by the editor UI to populate target selection dropdowns.
-        /// </summary>
-        /// <returns>An enumerable of all registered IActionTarget implementations.</returns>
-        public IEnumerable<IActionTarget> GetAllTargets() => allTargets.Values;
-
-        /// <summary>
-        /// Gets the names of all registered targets.
-        /// Used by NPCActionDispatcher to build the action vocabulary prompt for the LLM.
-        /// </summary>
-        /// <returns>An enumerable of all target names currently in the registry.</returns>
-        public IEnumerable<string> GetAllTargetNames() => allTargets.Keys;
     }
 }

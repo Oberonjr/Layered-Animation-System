@@ -1,5 +1,6 @@
 using AYellowpaper.SerializedCollections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Events;
 using LAS;
@@ -150,6 +151,71 @@ namespace LAS
         }
 
         /// <summary>
+        /// Executes an ordered sequence of action steps on the NPC at <paramref name="npcIndex"/>.
+        /// Steps are queued on NPCBehaviourController and run one after another.
+        /// Invalid or unresolvable steps are skipped with a warning; the rest still execute.
+        /// </summary>
+        public void DispatchSequence(int npcIndex, NPCActionSequence sequence, List<NPCController> registeredNPCs)
+        {
+            if (sequence?.actions == null || sequence.actions.Length == 0) return;
+            if (npcIndex < 0 || npcIndex >= registeredNPCs.Count)
+            {
+                Debug.LogWarning($"[Dispatcher] DispatchSequence: invalid npc_index {npcIndex}");
+                return;
+            }
+
+            NPCController npcCtrl  = registeredNPCs[npcIndex];
+            NPCBehaviourController behaviour = npcCtrl.GetComponent<NPCBehaviourController>();
+            if (behaviour == null)
+            {
+                Debug.LogWarning($"[Dispatcher] {npcCtrl.npcName} has no NPCBehaviourController.");
+                return;
+            }
+
+            int queued = 0;
+            var stepSummary = new System.Text.StringBuilder();
+
+            foreach (var step in sequence.actions)
+            {
+                if (string.IsNullOrEmpty(step.action_key) || step.action_key == "NONE") continue;
+
+                Transform primary   = NPCActionTargetRegistry.Instance?.Resolve(step.action_target);
+                Transform secondary = NPCActionTargetRegistry.Instance?.Resolve(step.action_secondary_target);
+
+                // Target-type validation (same guard as single-action Dispatch)
+                if (primary != null && keyLookup.TryGetValue(step.action_key, out var def))
+                {
+                    if (def.validTargetTypes?.Length > 0)
+                    {
+                        var targetComp = primary.GetComponent<IActionTarget>()
+                                      ?? primary.GetComponentInParent<IActionTarget>();
+                        if (targetComp != null && !def.IsValidTargetType(targetComp.Type))
+                        {
+                            Debug.LogWarning($"[Dispatcher] Sequence step '{step.action_key}': " +
+                                $"invalid target type for '{primary.name}' ({targetComp.Type}). Skipping.");
+                            continue;
+                        }
+                    }
+                }
+
+                if (behaviour.TryEnqueueAction(step.action_key, primary, secondary))
+                {
+                    queued++;
+                    string label = string.IsNullOrEmpty(step.action_target)
+                        ? step.action_key
+                        : $"{step.action_key}({step.action_target})";
+                    stepSummary.Append(queued > 1 ? " → " : "").Append(label);
+                }
+            }
+
+            if (queued > 0)
+            {
+                Debug.Log($"[Dispatcher] {npcCtrl.npcName} → sequence: {stepSummary}");
+                behaviour.StartQueuedActions();
+            }
+        }
+
+        /// <summary>
         /// Direct dispatch method for editor testing or manual action triggering.
         /// Bypasses LLM and action key lookup - directly executes an action on an NPC.
         /// Used primarily by the custom editor (NPCBehaviourControllerEditor) for testing actions in Play mode.
@@ -210,9 +276,22 @@ namespace LAS
             var registry = NPCActionTargetRegistry.Instance;
             if (registry != null)
             {
-                sb.AppendLine("Valid target names in this scene:");
-                foreach (string name in registry.GetAllTargetNames())
-                    sb.AppendLine($"  \"{name}\"");
+                sb.AppendLine("Valid target names in this scene (always use the PRIMARY name in action_target):");
+                foreach (var target in registry.GetAllTargets())
+                {
+                    if (target is ActionTarget at)
+                    {
+                        var aliasNames = at.GetAllAliases().ToList();
+                        if (aliasNames.Count > 0)
+                            sb.AppendLine($"  \"{target.TargetName}\"  (also known as: {string.Join(", ", aliasNames.Select(a => $"\"{a}\""))})");
+                        else
+                            sb.AppendLine($"  \"{target.TargetName}\"");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"  \"{target.TargetName}\"");
+                    }
+                }
             }
 
             sb.AppendLine();

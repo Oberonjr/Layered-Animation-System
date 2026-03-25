@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using LAS;
 
@@ -15,6 +16,11 @@ namespace LAS {
         [Header("NPC Identity")]
         [Tooltip("The display name of this NPC. Assigned from scenario configuration at runtime.")]
         public string npcName = "NPC";
+
+        [Tooltip("Optional aliases players might use to refer to this NPC (e.g. 'doc', 'the doctor', 'Dr. C'). " +
+                 "These are forwarded to the NPCTarget component at runtime and registered alongside the character name. " +
+                 "The LLM will also generate additional aliases automatically — add your own here for names that are especially important to recognize.")]
+        public List<string> npcAliases = new List<string>();
 
         [Tooltip("The role/occupation of this character (e.g., 'Mechanic', 'Instructor'). Assigned from scenario configuration.")]
         public string characterRole = ""; // Assigned from scenario
@@ -72,7 +78,12 @@ namespace LAS {
 
             // Ensure NPCTarget is present — it handles registration with the action target registry.
             if (GetComponent<NPCTarget>() == null)
-                gameObject.AddComponent<NPCTarget>();
+            {
+                var npcTarget = gameObject.AddComponent<NPCTarget>();
+                // Copy inspector-defined aliases so they are indexed when NPCTarget.Start() registers.
+                if (npcAliases.Count > 0)
+                    npcTarget.aliases.AddRange(npcAliases);
+            }
         }
 
         /// <summary>
@@ -147,7 +158,12 @@ namespace LAS {
             characterDescription = description;
 
             if (target != null)
+            {
                 NPCActionTargetRegistry.Instance?.Register(target);
+                // Re-register custom aliases (Register only indexes target.aliases, not npcAliases on this component).
+                if (npcAliases.Count > 0)
+                    NPCActionTargetRegistry.Instance?.RegisterAliases(target, npcAliases);
+            }
         }
 
         /// <summary>
