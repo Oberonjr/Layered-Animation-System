@@ -38,8 +38,10 @@ namespace LAS
         [SerializeField] private string customBaseUrl = "";
 
         [Header("Authentication")]
-        [Tooltip("Your API key. Leave empty to use the OPENAI_API_KEY environment variable instead.")]
-        [SerializeField] private string apiKey = "";
+        [Tooltip("The key name to look up in ~/.las/api_keys.txt (e.g. OPENAI_API_KEY, DEEPSEEK_API_KEY). " +
+                 "The actual key is read from that external file — it is never stored in this asset. " +
+                 "Use the buttons below to open or locate the key file.")]
+        [SerializeField] private string apiKeyName = "OPENAI_API_KEY";
 
         // ── Internal state ────────────────────────────────────────────────────────
 
@@ -57,13 +59,7 @@ namespace LAS
             _                       => customBaseUrl
         };
 
-        /// <summary>
-        /// Returns the API key from the Inspector field, falling back to the OPENAI_API_KEY env var.
-        /// </summary>
-        private string EffectiveApiKey =>
-            !string.IsNullOrEmpty(apiKey)
-                ? apiKey
-                : Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? "";
+        private string EffectiveApiKey => ApiKeyStore.GetKey(apiKeyName);
 
         // ── LLMProviderBase implementation ────────────────────────────────────────
 

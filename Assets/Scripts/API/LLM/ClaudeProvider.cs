@@ -26,8 +26,10 @@ namespace LAS
     public class ClaudeProvider : LLMProviderBase
     {
         [Header("Authentication")]
-        [Tooltip("Your Anthropic API key. Leave empty to use the ANTHROPIC_API_KEY environment variable.")]
-        [SerializeField] private string apiKey = "";
+        [Tooltip("The key name to look up in ~/.las/api_keys.txt (e.g. ANTHROPIC_API_KEY). " +
+                 "The actual key is read from that external file — it is never stored in this asset. " +
+                 "Use the buttons below to open or locate the key file.")]
+        [SerializeField] private string apiKeyName = "ANTHROPIC_API_KEY";
 
         private const string BASE_URL    = "https://api.anthropic.com/v1";
         private const string API_VERSION = "2023-06-01";
@@ -36,10 +38,7 @@ namespace LAS
 
         public override string ProviderDisplayName => $"Claude ({modelName})";
 
-        private string EffectiveApiKey =>
-            !string.IsNullOrEmpty(apiKey)
-                ? apiKey
-                : Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY") ?? "";
+        private string EffectiveApiKey => ApiKeyStore.GetKey(apiKeyName);
 
         // ── LLMProviderBase implementation ────────────────────────────────────────
 
@@ -51,7 +50,9 @@ namespace LAS
             if (string.IsNullOrEmpty(EffectiveApiKey))
             {
                 IsConnected = false;
-                onResult?.Invoke(false, "Claude: API key not set. Add it to the Inspector or the ANTHROPIC_API_KEY env var.");
+                onResult?.Invoke(false,
+                    $"Claude: API key '{apiKeyName}' not found.\n" +
+                    $"Open  {ApiKeyStore.KeyFilePath}  and fill in the key.");
                 yield break;
             }
 

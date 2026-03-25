@@ -539,7 +539,106 @@ namespace LAS {
             currentBehaviourCoroutine = StartCoroutine(newBehaviour);
         }
 
-        // ─── Action Queue ──────────────────────────────────────────────────────────
+        // ─── Action Queue (public API) ────────────────────────────────────────────
+
+        /// <summary>
+        /// Appends one step to the behaviour queue by mapping an action key to its coroutine.
+        /// Returns true if the step was successfully queued, false if the key is unknown or
+        /// a required target is missing.
+        /// Call StartQueuedActions() after all steps have been enqueued.
+        /// </summary>
+        public bool TryEnqueueAction(string actionKey, Transform primary, Transform secondary)
+        {
+            IEnumerator routine = null;
+
+            switch (actionKey)
+            {
+                case "GO_TO":
+                    if (primary != null) routine = GoToRoutine(primary);
+                    break;
+
+                case "PICK_UP":
+                    if (primary != null) routine = PickUpRoutine(primary);
+                    break;
+
+                case "LOOK_AT":
+                    if (primary != null) routine = LookAtRoutine(primary);
+                    break;
+
+                case "LOOK_AT_PLAYER":
+                    routine = LookAtPlayerCoroutine();
+                    break;
+
+                case "HAND_TO_PLAYER":
+                    routine = HandToPlayerRoutine();
+                    break;
+
+                case "HAND_TO_NPC":
+                {
+                    // primary may be an item (if given) or the target NPC; secondary is the NPC
+                    Transform npcTransform = secondary
+                        ?? (primary?.GetComponent<NPCBehaviourController>() != null ? primary : null);
+                    var targetNPC = npcTransform?.GetComponent<NPCBehaviourController>();
+                    if (targetNPC != null) routine = HandToNPCRoutine(targetNPC);
+                    break;
+                }
+
+                case "GRAB_FROM":
+                {
+                    var grabFrom = primary?.GetComponent<NPCBehaviourController>();
+                    if (grabFrom != null) routine = GrabFromRoutine(grabFrom);
+                    break;
+                }
+
+                case "REQUEST_FROM":
+                    if (primary != null) routine = RequestFromRoutine(primary);
+                    break;
+
+                case "RETURN_TO_IDLE":
+                    routine = ReturnToIdleRoutine();
+                    break;
+            }
+
+            if (routine == null)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] TryEnqueueAction: could not queue '{actionKey}'" +
+                    (primary == null ? " (primary target is null)" : ""));
+                return false;
+            }
+
+            behaviourQueue.Enqueue(routine);
+            return true;
+        }
+
+        /// <summary>
+        /// Starts executing the current behaviourQueue.
+        /// Cancels any running single behaviour or previous queue first.
+        /// No-op if the queue is empty.
+        /// </summary>
+        public void StartQueuedActions()
+        {
+            if (behaviourQueue.Count > 0)
+                ExecuteQueue();
+        }
+
+        /// <summary>
+        /// Coroutine version of LookAtPlayer — usable inside the action queue.
+        /// Finds the first registered Player-type target and smooth-rotates toward it.
+        /// </summary>
+        private IEnumerator LookAtPlayerCoroutine()
+        {
+            var registry = NPCActionTargetRegistry.Instance;
+            if (registry == null) yield break;
+
+            var players = registry.GetTargetsByType(TargetType.Player).ToList();
+            if (players.Count == 0)
+            {
+                Debug.LogWarning($"[{npcController.npcName}] LookAtPlayerCoroutine: No Player found in registry.");
+                yield break;
+            }
+
+            yield return LookAtRoutine(players[0].Transform);
+        }
 
         /// <summary>
         /// Cancels the running action queue and any current single behaviour coroutine.

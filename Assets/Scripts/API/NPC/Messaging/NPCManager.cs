@@ -7,6 +7,7 @@ using System.Text;
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
+using AYellowpaper.SerializedCollections;
 using LAS;
 
 namespace LAS {
@@ -60,6 +61,20 @@ namespace LAS {
         [Header("Runtime Info")]
         [SerializeField] private int currentProgressionStep = 0;
         [SerializeField] private List<NPCController> registeredNPCs = new List<NPCController>();
+
+        [Header("NPC Character Mapping")]
+        [Tooltip("Explicit character-to-NPC assignment. Click 'Extract Characters from JSON' in the Inspector " +
+                 "to populate the keys from your scenario file, then drag the correct NPC Controller into each slot. " +
+                 "When all slots are filled, this overrides the default index-based assignment. " +
+                 "Leave empty to fall back to registration order (first NPC registered = character[0]).")]
+        [SerializedDictionary("Character Name", "NPC Controller")]
+        public SerializedDictionary<string, NPCController> npcCharacterMap
+            = new SerializedDictionary<string, NPCController>();
+
+        [Header("Alias Generation")]
+        [Tooltip("Automatically generate LLM-based aliases for InteractableItem and LocationTarget objects on startup. " +
+                 "Aliases allow players to refer to targets by informal names or misspellings.")]
+        [SerializeField] private bool generateAliasesOnStartup = true;
 
         [Header("Debug")]
         [SerializeField] public bool showDetailedDebug = false;
@@ -173,20 +188,52 @@ namespace LAS {
                         yield break;
                     }
                 
-                    // Assign character data to NPCs based on index
-                    for (int i = 0; i < scenarioConfig.characters.Length; i++)
+                    // ── NPC Character Assignment ───────────────────────────────
+                    // If npcCharacterMap has at least one assigned entry, use it to
+                    // reorder registeredNPCs so that characters[i] → registeredNPCs[i].
+                    // Otherwise fall back to registration-order (index-based).
+                    bool useCharacterMap = npcCharacterMap != null &&
+                                          npcCharacterMap.Count > 0 &&
+                                          npcCharacterMap.Values.Any(v => v != null);
+
+                    if (useCharacterMap)
                     {
-                        if (i < registeredNPCs.Count)
+                        var orderedNPCs = new List<NPCController>();
+                        foreach (var character in scenarioConfig.characters)
                         {
-                            CharacterInfo character = scenarioConfig.characters[i];
-                            NPCController npc = registeredNPCs[i];
-                        
-                            npc.AssignCharacterData(
-                                character.name,
-                                character.role,
-                                GetFullCharacterDescription(character)
-                            );
+                            if (npcCharacterMap.TryGetValue(character.name, out NPCController mapped) &&
+                                mapped != null)
+                            {
+                                if (!orderedNPCs.Contains(mapped))
+                                    orderedNPCs.Add(mapped);
+                            }
+                            else
+                            {
+                                Debug.LogWarning($"[NPCManager] Character '{character.name}' has no NPC assigned " +
+                                                 "in npcCharacterMap and will be skipped.");
+                            }
                         }
+                        // Append any registered NPCs not covered by the map
+                        foreach (var npc in registeredNPCs)
+                            if (!orderedNPCs.Contains(npc))
+                                orderedNPCs.Add(npc);
+
+                        registeredNPCs = orderedNPCs;
+
+                        // Re-assign indices to match new order
+                        for (int i = 0; i < registeredNPCs.Count; i++)
+                            registeredNPCs[i].AssignIndex(i);
+                    }
+
+                    // Assign character data — works for both map-based and index-based ordering
+                    for (int i = 0; i < scenarioConfig.characters.Length && i < registeredNPCs.Count; i++)
+                    {
+                        CharacterInfo character = scenarioConfig.characters[i];
+                        NPCController npc = registeredNPCs[i];
+                        npc.AssignCharacterData(
+                            character.name,
+                            character.role,
+                            GetFullCharacterDescription(character));
                     }
                 }
                 catch (Exception e)
@@ -222,6 +269,14 @@ namespace LAS {
             }
 
             AddSystemMessage(connectionMessage);
+
+            // ── Alias generation (background — non-blocking) ──────────────────────
+            if (generateAliasesOnStartup)
+            {
+                string title = scenarioConfig?.scenario?.title ?? "";
+                StartCoroutine(AliasGenerator.GenerateAll(
+                    NPCActionTargetRegistry.Instance, llmProvider, title, this));
+            }
 
             // Add initial scenario messages
             if (scenarioConfig != null)
@@ -392,23 +447,13 @@ namespace LAS {
             yield return StartCoroutine(llmProvider.SendRequest(step2Prompt, actionOptions, r => step2Raw = r));
 
             // Step 2 failure is non-fatal — NPC simply performs no physical action.
-            NPCActionOnly actionResult = null;
+            NPCActionSequence actionSequence = null;
             if (!_interruptGenerationFlag && step2Raw != null)
             {
                 if (logLLMResponses)
                     Debug.Log($"[NPCManager] === LLM RESPONSE (Action) ===\n{step2Raw}");
 
-                try
-                {
-                    int si = step2Raw.IndexOf('{');
-                    int ei = step2Raw.LastIndexOf('}') + 1;
-                    if (si >= 0 && ei > si)
-                        actionResult = JsonUtility.FromJson<NPCActionOnly>(step2Raw.Substring(si, ei - si));
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning($"[NPCManager] Failed to parse action response (non-fatal): {ex.Message}");
-                }
+                actionSequence = ParseActionSequence(step2Raw);
             }
 
             if (_interruptGenerationFlag)
@@ -419,14 +464,22 @@ namespace LAS {
 
             // ── COMBINE: merge dialogue + action into a single NPCResponse ───────────
 
+            string actionSummary = actionSequence?.actions?.Length > 0
+                ? string.Join(" → ", actionSequence.actions
+                    .Where(a => a.action_key != "NONE")
+                    .Select(a => string.IsNullOrEmpty(a.action_target)
+                        ? a.action_key : $"{a.action_key}({a.action_target})"))
+                : "NONE";
+
             NPCResponse finalResponse = new NPCResponse
             {
                 npc_index             = npcIndex,
                 dialogue              = step1Response.dialogue,
                 internal_thought      = step1Response.internal_thought,
-                action_key            = actionResult?.action_key ?? "NONE",
-                action_target         = actionResult?.action_target ?? "",
-                action_secondary_target = actionResult?.action_secondary_target ?? ""
+                action_key            = actionSummary,
+                action_target         = actionSequence?.actions?.Length > 0
+                    ? actionSequence.actions[0].action_target ?? "" : "",
+                action_secondary_target = ""
             };
 
             if (showDetailedDebug || logLLMResponses)
@@ -436,7 +489,7 @@ namespace LAS {
                 Debug.Log($"[NPCManager] === FINAL PARSED ===\n" +
                           $"Speaker: {speakerName} (NPC {npcIndex})\n" +
                           $"Dialogue: \"{finalResponse.dialogue}\"\n" +
-                          $"Action: {finalResponse.action_key} \u2192 {finalResponse.action_target}\n" +
+                          $"Action Sequence: {actionSummary}\n" +
                           $"Internal Thought: \"{finalResponse.internal_thought}\"");
             }
 
@@ -461,32 +514,13 @@ namespace LAS {
 
                 NPCEventBus.BroadcastNPCStartedSpeaking(finalResponse.npc_index, "");
 
-                // Dispatch action — use PlanAndExecuteTask for multi-step actions (HAND_TO_PLAYER / HAND_TO_NPC),
-                // otherwise route through the standard dispatcher.
-                if (!string.IsNullOrEmpty(finalResponse.action_key) && finalResponse.action_key != "NONE")
+                // Dispatch action sequence (single-step and multi-step both handled uniformly)
+                if (actionSequence?.actions?.Length > 0)
                 {
                     if (actionDispatcher == null)
                         actionDispatcher = NPCActionDispatcher.Instance;
 
-                    var behaviour = currentSpeaker.GetComponent<NPCBehaviourController>();
-                    bool isMultiStep = finalResponse.action_key == "HAND_TO_PLAYER"
-                                    || finalResponse.action_key == "HAND_TO_NPC";
-
-                    if (behaviour != null && isMultiStep)
-                    {
-                        behaviour.PlanAndExecuteTask(userInput, finalResponse);
-                    }
-                    else if (actionDispatcher != null)
-                    {
-                        var command = new NPCActionCommand
-                        {
-                            npc_index               = finalResponse.npc_index,
-                            action_key              = finalResponse.action_key,
-                            action_target           = finalResponse.action_target,
-                            action_secondary_target = finalResponse.action_secondary_target
-                        };
-                        actionDispatcher.Dispatch(command, registeredNPCs);
-                    }
+                    actionDispatcher?.DispatchSequence(npcIndex, actionSequence, registeredNPCs);
                 }
             }
 
@@ -797,6 +831,8 @@ namespace LAS {
                 prompt.AppendLine("• If YOU just asked a question, WAIT for someone else to answer");
                 prompt.AppendLine("• NEVER answer your own questions");
                 prompt.AppendLine("• NEVER have multiple exchanges by yourself");
+                prompt.AppendLine("• If the player uses a vague term that could refer to a known item (e.g. 'that thing', 'the sharp one'), ask for clarification using the actual item name.");
+                prompt.AppendLine("• If the player asks about something completely unrecognizable or unrelated to this scenario, clearly state that you don't know what they mean and redirect to the current training task.");
                 prompt.AppendLine();
 
                 prompt.AppendLine("=== INTERACTION GUIDELINES ===");
@@ -911,22 +947,78 @@ namespace LAS {
             }
 
             prompt.AppendLine("=== TASK ===");
-            prompt.AppendLine($"Select the physical action {npcName} should perform based on what they said.");
-            prompt.AppendLine("IMPORTANT: LOOK_AT_PLAYER is the default action whenever the NPC is speaking directly to the player.");
-            prompt.AppendLine("Use LOOK_AT_PLAYER unless a more specific action (GO_TO, PICK_UP, HAND_TO_PLAYER, etc.) is clearly needed.");
-            prompt.AppendLine("Only use action_key: \"NONE\" if the NPC is speaking to another NPC (not the player) and no movement is needed.");
-            prompt.AppendLine("RULES FOR action_target:");
-            prompt.AppendLine("  • Use ONLY exact names from the Valid target names list above.");
-            prompt.AppendLine("  • For PICK_UP or GO_TO: target must be an OBJECT name, never a person's name.");
-            prompt.AppendLine("  • Match the target to what the PLAYER originally requested, not to names the NPC mentioned.");
+            prompt.AppendLine($"Select the physical action(s) {npcName} should perform based on this exchange.");
             prompt.AppendLine();
-            prompt.AppendLine("Respond with ONLY valid JSON (no other text). Examples:");
-            prompt.AppendLine("{\"action_key\": \"LOOK_AT_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}");
-            prompt.AppendLine("{\"action_key\": \"PICK_UP\", \"action_target\": \"exact_object_name\", \"action_secondary_target\": \"\"}");
+            prompt.AppendLine("RULES:");
+            prompt.AppendLine("• LOOK_AT_PLAYER is the DEFAULT when the NPC speaks directly to the player — always include it unless a bigger action supersedes it.");
+            prompt.AppendLine("• Use NONE only when the NPC is speaking to another NPC and no movement is needed.");
+            prompt.AppendLine("• You may chain multiple steps when required (e.g. PICK_UP then HAND_TO_PLAYER for 'give me the scalpel').");
+            prompt.AppendLine("• Use ONLY primary names from the valid target list above in action_target.");
+            prompt.AppendLine("• For PICK_UP or GO_TO: target must be an OBJECT name, never a person's name.");
+            prompt.AppendLine();
+            prompt.AppendLine("Respond with ONLY valid JSON in this EXACT format:");
+            prompt.AppendLine("{\"actions\": [{\"action_key\": \"STEP\", \"action_target\": \"name_or_empty\", \"action_secondary_target\": \"\"}]}");
+            prompt.AppendLine();
+            prompt.AppendLine("Single-step example (NPC talks to player):");
+            prompt.AppendLine("{\"actions\": [{\"action_key\": \"LOOK_AT_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}]}");
+            prompt.AppendLine();
+            prompt.AppendLine("Multi-step example (player asks NPC to bring an object):");
+            prompt.AppendLine("{\"actions\": [{\"action_key\": \"PICK_UP\", \"action_target\": \"Scalpel\", \"action_secondary_target\": \"\"}, {\"action_key\": \"HAND_TO_PLAYER\", \"action_target\": \"\", \"action_secondary_target\": \"\"}]}");
 
             return prompt.ToString();
         }
 
+
+        /// <summary>
+        /// Tries to parse an NPCActionSequence from a Step 2 LLM response.
+        /// Accepts the new sequence format {"actions":[...]} as well as the old single-action
+        /// format {"action_key":...} for backward compatibility.
+        /// Returns null if parsing fails or yields no usable steps.
+        /// </summary>
+        private NPCActionSequence ParseActionSequence(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return null;
+
+            int si = raw.IndexOf('{');
+            int ei = raw.LastIndexOf('}') + 1;
+            if (si < 0 || ei <= si) return null;
+            string json = raw.Substring(si, ei - si);
+
+            // Primary: sequence format {"actions":[...]}
+            try
+            {
+                var seq = JsonUtility.FromJson<NPCActionSequence>(json);
+                if (seq?.actions != null && seq.actions.Length > 0 &&
+                    !string.IsNullOrEmpty(seq.actions[0].action_key))
+                    return seq;
+            }
+            catch { }
+
+            // Fallback: single-action format {"action_key":"...","action_target":"..."}
+            try
+            {
+                var single = JsonUtility.FromJson<NPCActionOnly>(json);
+                if (single != null && !string.IsNullOrEmpty(single.action_key))
+                {
+                    return new NPCActionSequence
+                    {
+                        actions = new[]
+                        {
+                            new NPCActionStep
+                            {
+                                action_key              = single.action_key,
+                                action_target           = single.action_target           ?? "",
+                                action_secondary_target = single.action_secondary_target ?? ""
+                            }
+                        }
+                    };
+                }
+            }
+            catch { }
+
+            Debug.LogWarning($"[NPCManager] Could not parse action sequence (non-fatal). Raw: {raw}");
+            return null;
+        }
 
         private ChatMessage AddChatMessage(string speaker, string message, MessageType type, NPCController npc = null)
         {
