@@ -304,16 +304,20 @@ namespace LAS
         {
             var sb = new System.Text.StringBuilder();
 
-            // One line per action key
-            sb.AppendLine("ACTION KEYS (use exactly as written):");
+            // One line per action key — key, target slot, first sentence of description
+            sb.AppendLine("ACTION KEYS:");
             foreach (var kvp in actionHandlers)
             {
                 if (kvp.Key == null) continue;
                 var def = kvp.Key;
-                string targetHint = def.requiresTarget ? $"  target={def.targetDescription}" : "";
-                sb.AppendLine($"  {def.actionKey}{targetHint}");
+                string targetSlot = def.requiresTarget ? $" ({def.targetDescription})" : "";
+                // First sentence of llmDescription only — keeps it short but preserves disambiguation
+                string desc = def.llmDescription ?? "";
+                int stop = desc.IndexOfAny(new[] { '.', '\n' });
+                if (stop > 0) desc = desc.Substring(0, stop);
+                sb.AppendLine($"  {def.actionKey}{targetSlot} — {desc}");
             }
-            sb.AppendLine("  NONE  (no physical action needed)");
+            sb.AppendLine("  NONE — no physical action needed");
             sb.AppendLine();
 
             // Primary target names grouped by type — no aliases
