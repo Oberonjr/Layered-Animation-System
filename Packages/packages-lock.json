@@ -1,16 +1,28 @@
 {
   "dependencies": {
-    "com.soupday.cc3_unity_tools": {
-      "version": "file:C:/Layered_Animation_System/CCiC-Unity-Tools-2.2.3",
+    "com.unity.ai.navigation": {
+      "version": "2.0.10",
       "depth": 0,
-      "source": "local",
+      "source": "registry",
       "dependencies": {
-        "com.unity.nuget.newtonsoft-json": "3.0.0"
-      }
+        "com.unity.modules.ai": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
+    },
+    "com.unity.animation.rigging": {
+      "version": "1.4.1",
+      "depth": 0,
+      "source": "registry",
+      "dependencies": {
+        "com.unity.burst": "1.4.1",
+        "com.unity.test-framework": "1.1.24",
+        "com.unity.modules.animation": "1.0.0"
+      },
+      "url": "https://packages.unity.com"
     },
     "com.unity.burst": {
       "version": "1.8.27",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.mathematics": "1.2.1",
@@ -112,13 +124,6 @@
     "com.unity.nuget.mono-cecil": {
       "version": "1.11.6",
       "depth": 3,
-      "source": "registry",
-      "dependencies": {},
-      "url": "https://packages.unity.com"
-    },
-    "com.unity.nuget.newtonsoft-json": {
-      "version": "3.2.2",
-      "depth": 1,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"

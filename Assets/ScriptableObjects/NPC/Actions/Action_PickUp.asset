@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39639dcc9890e4a4882e9655ccdf05ba, type: 3}
+  m_Name: Action_PickUp
+  m_EditorClassIdentifier: Assembly-CSharp::NPCActionDefinition
+  actionKey: PICK_UP
+  displayName: Pick up
+  llmDescription: Walk to and pick up a physical object, then hold it. Use when retrieving
+    an instrument, chart, or item to use or show to someone.
+  requiresTarget: 1
+  requiresSecondaryTarget: 0
+  targetDescription: The name of the object to pick up. Must be one of the valid
+    target names listed below.
+  secondaryTargetDescription: 
+  validTargetTypes: 03000000
+  editorColor: {r: 0.09291565, g: 0.42349967, b: 0.6792453, a: 1}

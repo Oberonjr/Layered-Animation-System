@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "com.soupday.cc3_unity_tools": "file:C:/Layered_Animation_System/CCiC-Unity-Tools-2.2.3",
+    "com.unity.ai.navigation": "2.0.10",
+    "com.unity.animation.rigging": "1.4.1",
     "com.unity.feature.development": "1.0.2",
     "com.unity.ide.rider": "3.0.39",
     "com.unity.inputsystem": "1.18.0",
