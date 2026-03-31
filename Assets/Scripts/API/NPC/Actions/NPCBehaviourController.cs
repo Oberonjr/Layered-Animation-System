@@ -572,10 +572,11 @@ namespace LAS {
                 yield break;
             }
 
-            var location = locationTransform?.GetComponent<LocationTarget>();
+            var location = locationTransform?.GetComponent<LocationTarget>()
+                        ?? locationTransform?.GetComponentInParent<LocationTarget>();
             if (location == null)
             {
-                Debug.LogWarning($"[{npcController.npcName}] PutDown: target '{locationTransform?.name}' is not a LocationTarget.");
+                Debug.LogWarning($"[{npcController.npcName}] PutDown: target '{locationTransform?.name}' has no LocationTarget on it or its parents.");
                 NPCEventBus.BroadcastActionImpossible(GetNPCIndex(), $"I can't place things at {locationTransform?.name}.");
                 yield break;
             }

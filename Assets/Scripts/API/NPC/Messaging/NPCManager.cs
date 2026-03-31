@@ -460,7 +460,7 @@ namespace LAS {
 
             // ── STEP 2: Action Classification (short prompt, temperature 0.1) ────────
 
-            string step2Prompt = BuildActionClassificationPrompt(npcIndex, userInput, step1Response.dialogue);
+            string step2Prompt = BuildActionClassificationPrompt(npcIndex, userInput, step1Response.dialogue, step1Response.internal_thought);
 
             if (logPrompts)
                 Debug.Log($"[NPCManager] === LLM REQUEST (Action) ===\n{step2Prompt}");
@@ -937,10 +937,11 @@ namespace LAS {
             prompt.AppendLine("You MUST use EXACTLY these three field names:");
             prompt.AppendLine("  \"npc_index\"       : integer — who speaks (0 or 1)");
             prompt.AppendLine("  \"dialogue\"        : string  — the EXACT words spoken aloud");
-            prompt.AppendLine("  \"internal_thought\": string  — brief private reasoning");
+            prompt.AppendLine("  \"internal_thought\": string  — the physical action you intend to take, if any (e.g. \"picking up the scalpel\", \"walking to the supply table\", \"handing the item to the player\"). Write \"none\" if no physical action is needed.");
             prompt.AppendLine("Do NOT add action_key or action_target — those are handled separately.");
             prompt.AppendLine("Correct output:");
-            prompt.AppendLine("{\"npc_index\": 1, \"dialogue\": \"Let me show you the technique.\", \"internal_thought\": \"Needs hands-on guidance.\"}");
+            prompt.AppendLine("{\"npc_index\": 1, \"dialogue\": \"Let me grab that for you.\", \"internal_thought\": \"picking up the scalpel and handing it to the player\"}");
+            prompt.AppendLine("{\"npc_index\": 0, \"dialogue\": \"Good question — the key thing to remember is...\", \"internal_thought\": \"none\"}");
             prompt.AppendLine("WRONG (never do this):");
             prompt.AppendLine("description of NPC response: {\"npc_index\": 1 ...");
             prompt.AppendLine();
@@ -950,28 +951,86 @@ namespace LAS {
         }
 
         /// <summary>
+        /// Builds a compact scene-state snapshot for the Step 2 prompt.
+        /// Lists every interactable item's status (free / held by X / placed at Y)
+        /// and every NPC's held-object status so the LLM can pick the right action
+        /// (e.g. PICK_UP from a surface vs GRAB_FROM an NPC who is already holding it).
+        /// </summary>
+        private string BuildSceneStateForActionPrompt()
+        {
+            var sb = new StringBuilder();
+            var registry = NPCActionTargetRegistry.Instance;
+            if (registry == null) return "";
+
+            // Interactable items
+            var items = registry.GetTargetsByType(TargetType.InteractableObject)
+                .OfType<InteractableItem>()
+                .ToList();
+            if (items.Count > 0)
+            {
+                sb.Append("  Items: ");
+                sb.AppendLine(string.Join(", ",
+                    items.Select(i => $"{i.TargetName}({i.GetStateDescription()})")));
+            }
+
+            // NPC hold states
+            var npcLines = new List<string>();
+            foreach (var npc in registeredNPCs)
+            {
+                var b = npc.GetComponent<NPCBehaviourController>();
+                if (b == null) continue;
+                string held = b.IsHoldingObject
+                    ? $"holding {b.HeldObject?.name ?? "object"}"
+                    : "empty-handed";
+                npcLines.Add($"{npc.npcName}({held})");
+            }
+            if (npcLines.Count > 0)
+            {
+                sb.Append("  NPCs:  ");
+                sb.AppendLine(string.Join(", ", npcLines));
+            }
+
+            // Location slot states (only locations with something notable)
+            var locLines = new List<string>();
+            foreach (var target in registry.GetTargetsByType(TargetType.Location).OfType<LocationTarget>())
+            {
+                string desc = target.GetStateDescription();
+                if (desc != "empty") locLines.Add($"{target.TargetName}: {desc}");
+            }
+            if (locLines.Count > 0)
+            {
+                sb.AppendLine("  Locations:");
+                foreach (var l in locLines) sb.AppendLine($"    {l}");
+            }
+
+            return sb.Length > 0 ? "SCENE STATE:\n" + sb : "";
+        }
+
+        /// <summary>
         /// Builds the Step 2 action classification prompt — short, focused, low-temperature.
         /// Only includes the triggering exchange and available actions (no full conversation history).
         /// </summary>
-        private string BuildActionClassificationPrompt(int npcIndex, string playerInput, string npcDialogue)
+        private string BuildActionClassificationPrompt(int npcIndex, string playerInput, string npcDialogue, string npcActionIntent = null)
         {
             StringBuilder prompt = new StringBuilder();
 
             string npcName = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
                 ? registeredNPCs[npcIndex].npcName : $"NPC {npcIndex}";
 
-            var npcBehaviour = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
-                ? registeredNPCs[npcIndex].GetComponent<NPCBehaviourController>() : null;
-            string npcState = npcBehaviour != null
-                ? (npcBehaviour.IsHoldingObject
-                    ? $"Currently holding: {npcBehaviour.HeldObject?.name ?? "an object"}"
-                    : "Not holding any object")
-                : "Unknown state";
-
             // ── Context (kept minimal — only what's needed for action selection) ─────
             prompt.AppendLine($"PLAYER: \"{playerInput}\"");
             prompt.AppendLine($"{npcName}: \"{npcDialogue}\"");
-            prompt.AppendLine($"State: {npcState}");
+
+            // Action intent from Step 1 — the primary signal for action classification.
+            if (!string.IsNullOrEmpty(npcActionIntent) &&
+                !npcActionIntent.Equals("none", StringComparison.OrdinalIgnoreCase))
+                prompt.AppendLine($"{npcName} intends to: {npcActionIntent}");
+
+            // Scene state — items, NPC hold status, location slots
+            string sceneState = BuildSceneStateForActionPrompt();
+            if (!string.IsNullOrEmpty(sceneState))
+                prompt.AppendLine(sceneState);
+
             if (recentActionLog.Count > 0)
                 prompt.AppendLine($"Recent: {string.Join(" | ", recentActionLog)}");
             prompt.AppendLine();
@@ -983,18 +1042,17 @@ namespace LAS {
 
             // ── Task ──────────────────────────────────────────────────────────────────
             prompt.AppendLine("RULES:");
-            prompt.AppendLine("• Physical task (move/pick up/hand/place)? → use those keys only. No LOOK_AT_PLAYER.");
-            prompt.AppendLine("• Talking to player, or player asks NPC to look/face them? → LOOK_AT_PLAYER.");
-            prompt.AppendLine("• NPC-to-NPC only, no movement? → NONE.");
+            prompt.AppendLine("• Physical task (move/pick up/hand/place)? → use those keys. Do NOT add LOOK_AT_PLAYER.");
+            prompt.AppendLine("• No physical task? → always use LOOK_AT_PLAYER as default.");
             prompt.AppendLine("• Chain steps in order. Use exact primary names from VALID TARGET NAMES.");
             prompt.AppendLine();
             prompt.AppendLine("Output ONLY JSON:");
             prompt.AppendLine("{\"actions\":[{\"action_key\":\"KEY\",\"action_target\":\"name_or_empty\",\"action_secondary_target\":\"\"}]}");
             prompt.AppendLine();
             prompt.AppendLine("Examples:");
-            prompt.AppendLine("look at player → {\"actions\":[{\"action_key\":\"LOOK_AT_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
-            prompt.AppendLine("go to table   → {\"actions\":[{\"action_key\":\"GO_TO\",\"action_target\":\"Supply Table\",\"action_secondary_target\":\"\"}]}");
-            prompt.AppendLine("give scalpel  → {\"actions\":[{\"action_key\":\"PICK_UP\",\"action_target\":\"Scalpel\",\"action_secondary_target\":\"\"},{\"action_key\":\"HAND_TO_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
+            prompt.AppendLine("talking/no action → {\"actions\":[{\"action_key\":\"LOOK_AT_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
+            prompt.AppendLine("go to table       → {\"actions\":[{\"action_key\":\"GO_TO\",\"action_target\":\"Supply Table\",\"action_secondary_target\":\"\"}]}");
+            prompt.AppendLine("give scalpel      → {\"actions\":[{\"action_key\":\"PICK_UP\",\"action_target\":\"Scalpel\",\"action_secondary_target\":\"\"},{\"action_key\":\"HAND_TO_PLAYER\",\"action_target\":\"\",\"action_secondary_target\":\"\"}]}");
 
             return prompt.ToString();
         }
