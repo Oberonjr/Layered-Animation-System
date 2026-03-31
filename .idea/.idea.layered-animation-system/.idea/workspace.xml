@@ -6,9 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="66680b18-c45c-45ac-844d-dac18d71ab5c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Characters/Kevin Iglesias/Human Character Dummy/Materials/HumanDummy.mat" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Characters/Kevin Iglesias/Human Character Dummy/Materials/HumanDummy.mat" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/NPC/NPC_Doctor.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Prefabs/NPC/NPC_Doctor.prefab" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/NPC/NPC_Nurse.prefab" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Prefabs/NPC/NPC_Nurse.prefab" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCManager.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -34,22 +38,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Attach to Unity Editor.Attach to Unity Editor.executor&quot;: &quot;Debug&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Attach to Unity Editor.Attach to Unity Editor.executor": "Debug",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "feature/action-system-streamlining",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="Attach to Unity Editor.Attach to Unity Editor">
     <configuration name="Start Unity" type="RunUnityExe" factoryName="Unity Executable">
       <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe" />
@@ -97,6 +102,7 @@
       <updated>1774359383708</updated>
       <workItem from="1774359384754" duration="6156000" />
       <workItem from="1774429372880" duration="16237000" />
+      <workItem from="1774947236851" duration="5360000" />
     </task>
     <servers />
   </component>

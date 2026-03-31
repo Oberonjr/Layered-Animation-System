@@ -36,6 +36,33 @@ namespace LAS
         private Dictionary<string, NPCActionDefinition> keyLookup; // action_key → definition
 
         /// <summary>
+        /// Returns true if <paramref name="target"/> is a valid target for <paramref name="def"/>.
+        /// First checks the registered IActionTarget.Type; if that fails and the action accepts Location,
+        /// falls back to a direct GetComponent check — handles objects that carry both an InteractableItem
+        /// and a LocationTarget component (e.g. a tray that is also a placement surface).
+        /// </summary>
+        private static bool IsTargetTypeValid(NPCActionDefinition def, Transform target)
+        {
+            if (def.validTargetTypes == null || def.validTargetTypes.Length == 0) return true;
+
+            var registered = target.GetComponent<IActionTarget>()
+                          ?? target.GetComponentInParent<IActionTarget>();
+
+            if (registered != null && def.IsValidTargetType(registered.Type)) return true;
+
+            // Fallback: check actual components for each valid type the action accepts.
+            foreach (var vt in def.validTargetTypes)
+            {
+                if (vt == TargetType.Location &&
+                    (target.GetComponent<LocationTarget>() != null ||
+                     target.GetComponentInParent<LocationTarget>() != null))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Initializes the singleton instance and builds the action key lookup table.
         /// Ensures only one dispatcher exists in the scene.
         /// </summary>
@@ -130,17 +157,14 @@ namespace LAS
 
             // Runtime target-type validation — guards against the LLM supplying an NPC name
             // as the target for an action that requires a physical object (e.g. PICK_UP).
-            if (primaryTarget != null && actionDef.validTargetTypes != null && actionDef.validTargetTypes.Length > 0)
+            if (primaryTarget != null && !IsTargetTypeValid(actionDef, primaryTarget))
             {
-                var primaryActionTarget = primaryTarget.GetComponent<IActionTarget>()
-                                       ?? primaryTarget.GetComponentInParent<IActionTarget>();
-                if (primaryActionTarget != null && !actionDef.IsValidTargetType(primaryActionTarget.Type))
-                {
-                    Debug.LogWarning($"[Dispatcher] Invalid target type for '{actionDef.displayName}': " +
-                                     $"'{primaryTarget.name}' is {primaryActionTarget.Type}, expected " +
-                                     $"[{string.Join(", ", actionDef.validTargetTypes)}]. Aborting action.");
-                    return;
-                }
+                var registered = primaryTarget.GetComponent<IActionTarget>()
+                              ?? primaryTarget.GetComponentInParent<IActionTarget>();
+                Debug.LogWarning($"[Dispatcher] Invalid target type for '{actionDef.displayName}': " +
+                                 $"'{primaryTarget.name}' is {registered?.Type.ToString() ?? "unknown"}, expected " +
+                                 $"[{string.Join(", ", actionDef.validTargetTypes)}]. Aborting action.");
+                return;
             }
 
             Debug.Log($"[Dispatcher] {npcCtrl.npcName} → {actionDef.displayName}" +
@@ -185,16 +209,13 @@ namespace LAS
                 // Target-type validation (same guard as single-action Dispatch)
                 if (primary != null && keyLookup.TryGetValue(step.action_key, out var def))
                 {
-                    if (def.validTargetTypes?.Length > 0)
+                    if (!IsTargetTypeValid(def, primary))
                     {
                         var targetComp = primary.GetComponent<IActionTarget>()
                                       ?? primary.GetComponentInParent<IActionTarget>();
-                        if (targetComp != null && !def.IsValidTargetType(targetComp.Type))
-                        {
-                            Debug.LogWarning($"[Dispatcher] Sequence step '{step.action_key}': " +
-                                $"invalid target type for '{primary.name}' ({targetComp.Type}). Skipping.");
-                            continue;
-                        }
+                        Debug.LogWarning($"[Dispatcher] Sequence step '{step.action_key}': " +
+                            $"invalid target type for '{primary.name}' ({targetComp?.Type.ToString() ?? "unknown"}). Skipping.");
+                        continue;
                     }
                 }
 
@@ -292,7 +313,7 @@ namespace LAS
             }
 
             sb.AppendLine();
-            sb.AppendLine("If no physical action is needed, use action_key: \"NONE\".");
+            sb.AppendLine("If no physical action is needed, use action_key: \"LOOK_AT_PLAYER\".");
             return sb.ToString();
         }
 
@@ -317,7 +338,6 @@ namespace LAS
                 if (stop > 0) desc = desc.Substring(0, stop);
                 sb.AppendLine($"  {def.actionKey}{targetSlot} — {desc}");
             }
-            sb.AppendLine("  NONE — no physical action needed");
             sb.AppendLine();
 
             // Primary target names grouped by type — no aliases

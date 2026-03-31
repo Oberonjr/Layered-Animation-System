@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using LAS;
-
 namespace LAS {
     /// <summary>
     /// Core NPC component managing identity, visual state, and event bus registration.
@@ -9,7 +8,6 @@ namespace LAS {
     /// Works alongside NPCBehaviourController for physical actions.
     /// Character data (name, role, description) is assigned by NPCManager from scenario config.
     /// </summary>
-    /// 
 
     public class NPCController : MonoBehaviour
     {
@@ -30,30 +28,27 @@ namespace LAS {
         public string characterDescription = ""; // Assigned from scenario
 
         [Header("Visual Indicator")]
-        [Tooltip("The renderer component used to visualize when this NPC is speaking (typically a capsule or other mesh). Color will change when speaking.")]
-        [SerializeField] private Renderer capsuleRenderer;
+        [Tooltip("The SkinnedMeshRenderer on a child object to add the speaking highlight overlay to. Auto-found in children if left empty.")]
+        [SerializeField] private SkinnedMeshRenderer speakerRenderer;
 
-        [Tooltip("The color to lerp toward when this NPC is speaking. Creates a pulsing effect.")]
-        [SerializeField] private Color highlightColor = Color.green; // Color when speaking
+        [Tooltip("Highlight color shown when this NPC is speaking.")]
+        [SerializeField] private Color highlightColor = Color.green;
 
-        [Tooltip("The base color when this NPC is not speaking.")]
-        [SerializeField] private Color normalColor = Color.gray;
+        [Tooltip("Minimum overlay alpha during the pulse (bottom of the wave).")]
+        [SerializeField] [Range(0f, 1f)] private float minAlpha = 0f;
 
-        [Tooltip("Speed of the pulsing effect when speaking (higher = faster pulse).")]
+        [Tooltip("Maximum overlay alpha during the pulse (top of the wave).")]
+        [SerializeField] [Range(0f, 1f)] private float maxAlpha = 0.35f;
+
+        [Tooltip("Speed of the pulse effect while speaking (higher = faster).")]
         [SerializeField] private float pulseSpeed = 2f;
 
         [Header("Runtime Info")]
-        [Tooltip("This NPC's index in the NPCManager's registered list. Used by the LLM to reference specific NPCs. Assigned automatically by NPCManager.")]
-        [SerializeField] private int assignedIndex = -1; // Assigned by NPCManager
+        [Tooltip("This NPC's index in the NPCManager's registered list. Assigned automatically by NPCManager.")]
+        [SerializeField] private int assignedIndex = -1;
 
-        /// <summary>Whether this NPC is currently speaking (affects visual state).</summary>
-        private bool isSpeaking = false;
-
-        /// <summary>Material instance for this NPC's renderer (created at runtime to avoid shared material issues).</summary>
-        private Material material;
-
-        /// <summary>The color the material is lerping toward (either normal or highlight).</summary>
-        private Color targetColor;
+        /// <summary>Overlay material instance added to the mesh when speaking. Shader drives the pulse via _Time.</summary>
+        private Material _overlayMaterial;
 
         /// <summary>Gets the index assigned to this NPC by NPCManager.</summary>
         public int AssignedIndex => assignedIndex;
@@ -62,25 +57,46 @@ namespace LAS {
         public Color HighlightColor => highlightColor;
 
         /// <summary>
-        /// Initializes the material and ensures an NPCTarget component is present for action system registration.
+        /// Creates the overlay material and appends it to the skinned mesh renderer's materials array.
+        /// The overlay starts inactive (_Active = 0) so it is invisible until SetSpeaking(true) is called.
         /// </summary>
         void Awake()
         {
-            if (capsuleRenderer == null)
-                capsuleRenderer = GetComponent<Renderer>();
+            if (speakerRenderer == null)
+                speakerRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
 
-            if (capsuleRenderer != null)
+            if (speakerRenderer != null)
             {
-                material = capsuleRenderer.material;
-                material.color = normalColor;
-                targetColor = normalColor;
+                var shader = Shader.Find("LAS/NPCSpeakingHighlight");
+                if (shader == null)
+                {
+                    Debug.LogWarning("[NPCController] LAS/NPCSpeakingHighlight shader not found — speaking highlight disabled.");
+                }
+                else
+                {
+                    _overlayMaterial = new Material(shader);
+                    _overlayMaterial.SetColor("_Color", highlightColor);
+                    _overlayMaterial.SetFloat("_MinAlpha", minAlpha);
+                    _overlayMaterial.SetFloat("_MaxAlpha", maxAlpha);
+                    _overlayMaterial.SetFloat("_PulseSpeed", pulseSpeed);
+                    _overlayMaterial.SetFloat("_Active", 0f);
+
+                    var mats = speakerRenderer.sharedMaterials;
+                    var newMats = new Material[mats.Length + 1];
+                    mats.CopyTo(newMats, 0);
+                    newMats[newMats.Length - 1] = _overlayMaterial;
+                    speakerRenderer.materials = newMats;
+
+                    // .materials setter instances all entries — read back the live reference
+                    // so SetFloat calls in SetSpeaking() affect the renderer's actual instance.
+                    _overlayMaterial = speakerRenderer.materials[newMats.Length - 1];
+                }
             }
 
             // Ensure NPCTarget is present — it handles registration with the action target registry.
             if (GetComponent<NPCTarget>() == null)
             {
                 var npcTarget = gameObject.AddComponent<NPCTarget>();
-                // Copy inspector-defined aliases so they are indexed when NPCTarget.Start() registers.
                 if (npcAliases.Count > 0)
                     npcTarget.aliases.AddRange(npcAliases);
             }
@@ -96,42 +112,19 @@ namespace LAS {
         }
 
         /// <summary>
-        /// Cleans up event bus subscription and destroys the material instance.
-        /// Registry unregistration is handled automatically by the NPCTarget component.
+        /// Cleans up event bus subscription and destroys the overlay material instance.
         /// </summary>
         void OnDestroy()
         {
             NPCEventBus.UnregisterNPC(this);
-
-            if (material != null)
-                Destroy(material);
-        }
-
-        /// <summary>
-        /// Handles smooth color transitions and pulsing effect when speaking.
-        /// The material color lerps toward targetColor, and pulses between normal and highlight when speaking.
-        /// </summary>
-        void Update()
-        {
-            if (material == null)
-                return;
-
-            // Smooth color transition
-            material.color = Color.Lerp(material.color, targetColor, Time.deltaTime * 5f);
-
-            // Pulse effect when speaking
-            if (isSpeaking)
-            {
-                float pulse = (Mathf.Sin(Time.time * pulseSpeed) + 1f) * 0.5f;
-                material.color = Color.Lerp(normalColor, highlightColor, pulse);
-            }
+            if (_overlayMaterial != null)
+                Destroy(_overlayMaterial);
         }
 
         /// <summary>
         /// Assigns this NPC's index in the NPCManager's registered NPC list.
-        /// Called by NPCManager during initialization. The index is used by the LLM to specify which NPC should perform actions.
+        /// Called by NPCManager during initialization.
         /// </summary>
-        /// <param name="index">The zero-based index in the NPCManager's registeredNPCs list.</param>
         public void AssignIndex(int index)
         {
             assignedIndex = index;
@@ -142,14 +135,10 @@ namespace LAS {
         /// Assigns character data from the scenario configuration to this NPC.
         /// Called by NPCManager during initialization. Updates the target registry if already registered.
         /// </summary>
-        /// <param name="name">The character's name.</param>
-        /// <param name="role">The character's role/occupation.</param>
-        /// <param name="description">Full character description (personality, background, communication style).</param>
         public void AssignCharacterData(string name, string role, string description)
         {
             var target = GetComponent<NPCTarget>();
 
-            // Unregister while TargetName still reflects the old npcName, then update, then re-register.
             if (target != null)
                 NPCActionTargetRegistry.Instance?.Unregister(target);
 
@@ -160,22 +149,19 @@ namespace LAS {
             if (target != null)
             {
                 NPCActionTargetRegistry.Instance?.Register(target);
-                // Re-register custom aliases (Register only indexes target.aliases, not npcAliases on this component).
                 if (npcAliases.Count > 0)
                     NPCActionTargetRegistry.Instance?.RegisterAliases(target, npcAliases);
             }
         }
 
         /// <summary>
-        /// Sets whether this NPC is currently speaking, which triggers visual feedback.
-        /// When speaking, the renderer pulses between normal and highlight colors.
-        /// Called by NPCManager or ConversationFlowController when dialogue is displayed/hidden.
+        /// Activates or deactivates the speaking highlight overlay.
+        /// When active, the shader pulses the overlay alpha using _Time — no per-frame C# update needed.
         /// </summary>
-        /// <param name="speaking">True if the NPC is speaking, false otherwise.</param>
         public void SetSpeaking(bool speaking)
         {
-            isSpeaking = speaking;
-            targetColor = speaking ? highlightColor : normalColor;
+            if (_overlayMaterial != null)
+                _overlayMaterial.SetFloat("_Active", speaking ? 1f : 0f);
         }
     }
 
