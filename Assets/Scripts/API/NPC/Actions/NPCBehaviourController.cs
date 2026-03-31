@@ -19,7 +19,7 @@ namespace LAS {
     }
 
     /// <summary>
-    /// Per-NPC component. Handles all physical behaviour: movement, looking, 
+    /// Per-NPC component. Handles all physical behaviour: movement, looking,
     /// picking up and handing objects. Works alongside NPCController.
     /// </summary>
 
@@ -32,7 +32,7 @@ namespace LAS {
         [SerializeField] private Animator animator;
 
         private Coroutine lookAtCoroutine;
-        
+
         [Header("Item Slot")]
         [Tooltip("The transform where held objects are attached (e.g. right hand bone or empty child). Objects will be parented to this transform and positioned at its local origin when picked up.")]
         [SerializeField] private Transform itemSlot;
@@ -45,13 +45,9 @@ namespace LAS {
         [SerializeField] private float lookStopAngleThreshold = 2f;
 
         [Header("Navigation Settings")]
-<<<<<<< HEAD
-        [Tooltip("The default distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters). Used by GO_TO and RETURN_TO_IDLE.")]
-        [SerializeField] private float arrivalDistance = 0.5f;
-=======
         [Tooltip("The distance from the target at which the NPC is considered to have 'arrived' (in Unity units/meters).")]
         [SerializeField] private float arrivalDistance = 1.5f;
->>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
+
 
         [Tooltip("How close the NPC must get before picking up an object. Keep slightly larger than the item's collision radius.")]
         [SerializeField] private float pickupRange = 1.2f;
@@ -143,143 +139,9 @@ namespace LAS {
             var registry = NPCActionTargetRegistry.Instance;
             if (registry == null) return;
 
-            // Get all Player-type targets
             var players = registry.GetTargetsByType(TargetType.Player).ToList();
 
-    /// <summary>
-    /// Makes the NPC rotate to look at a specific transform.
-    /// Uses smooth rotation (slerp) until facing the target within the angle threshold.
-    /// Cancels any currently running behavior.
-    /// </summary>
-    /// <param name="target">The transform to look at.</param>
-    public void LookAt(Transform target)
-    {
-        if (target == null) return;
-        SwitchBehaviour(LookAtRoutine(target));
-    }
-
-    /// <summary>
-    /// Makes the NPC navigate to a target position using NavMesh pathfinding.
-    /// Fires OnArrivedAtTarget event when the NPC reaches the destination.
-    /// Cancels any currently running behavior.
-    /// </summary>
-    /// <param name="target">The transform to navigate to.</param>
-    public void GoTo(Transform target)
-    {
-        if (target == null) return;
-        SwitchBehaviour(GoToRoutine(target));
-    }
-
-    /// <summary>
-    /// Makes the NPC walk to an object and pick it up.
-    /// The object is parented to the NPC's item slot and physics are disabled.
-    /// Fires OnPickedUpObject event when complete.
-    /// </summary>
-    /// <param name="target">The object to pick up (should be an InteractableObject).</param>
-    public void PickUp(Transform target)
-    {
-        if (target == null) return;
-        SwitchBehaviour(PickUpRoutine(target));
-    }
-
-    /// <summary>
-    /// Walk to an NPC and place held object in their item slot.
-    /// </summary>
-    public void HandToNPC(NPCBehaviourController targetNPC)
-    {
-        if (targetNPC == null) return;
-        if (!IsHoldingObject)
-        {
-            Debug.LogWarning($"[{npcController.npcName}] HandToNPC: not holding anything.");
-            return;
-        }
-        SwitchBehaviour(HandToNPCRoutine(targetNPC));
-    }
-
-    /// <summary>
-    /// Hold the object out in front, waiting for the player to take it.
-    /// In VR this is how a player receives an object.
-    /// </summary>
-    public void HandToPlayer()
-    {
-        if (!IsHoldingObject)
-        {
-            Debug.LogWarning($"[{npcController.npcName}] HandToPlayer: not holding anything.");
-            return;
-        }
-        SwitchBehaviour(HandToPlayerRoutine());
-    }
-
-    /// <summary>
-    /// Walk to a target NPC and take the object they are holding.
-    /// The object is transferred from the target's item slot to this NPC's item slot.
-    /// Warns if the target is not holding anything.
-    /// </summary>
-    /// <param name="targetNPC">The NPC to grab the object from.</param>
-    public void GrabFrom(NPCBehaviourController targetNPC)
-    {
-        if (targetNPC == null) return;
-        SwitchBehaviour(GrabFromRoutine(targetNPC));
-    }
-
-    /// <summary>
-    /// Face the target and gesture toward them - signal you want their object.
-    /// The target NPC decides whether to hand it over.
-    /// </summary>
-    public void RequestFrom(Transform target)
-    {
-        if (target == null) return;
-        SwitchBehaviour(RequestFromRoutine(target));
-    }
-
-    /// <summary>
-    /// Makes the NPC return to their idle/home position (if set) and reset their state.
-    /// Clears the navigation path and stops offering any held objects.
-    /// Fires OnReturnedToIdle event when complete.
-    /// </summary>
-    public void ReturnToIdle()
-    {
-        SwitchBehaviour(ReturnToIdleRoutine());
-    }
-
-    // ─── Coroutine Implementations ────────────────────────────────────────────
-
-    /// <summary>
-    /// Coroutine that smoothly rotates the NPC to face a target.
-    /// Runs each frame until the angle to target is within the threshold.
-    /// </summary>
-    /// <param name="target">The transform to look at.</param>
-    private IEnumerator LookAtRoutine(Transform target)
-    {
-        while (true)
-        {
-            Vector3 direction = (target.position - transform.position).normalized;
-            direction.y = 0f;
-
-            if (direction == Vector3.zero) yield break;
-            
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookRotationSpeed);
-
-            if (Quaternion.Angle(transform.rotation, targetRotation) < lookStopAngleThreshold)
-                yield break;
-
-            yield return null;
-        }
-    }
-
-    /// <summary>
-    /// Coroutine that navigates the NPC to a target position using NavMeshAgent.
-    /// Waits until the NPC reaches the arrival distance, then fires OnArrivedAtTarget event.
-    /// </summary>
-    /// <param name="target">The transform to navigate to.</param>
-    private IEnumerator GoToRoutine(Transform target)
-    {
-        agent.SetDestination(target.position);
-
-        while (true)
-        {
-            if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
+            if (players.Count == 0)
             {
                 Debug.LogWarning($"[{npcController.npcName}] LookAtPlayer: No Player found in registry.");
                 return;
@@ -411,18 +273,6 @@ namespace LAS {
             while (true)
             {
                 lookAtScript.LookAt(target);
-                
-                /*Vector3 direction = (target.position - transform.position).normalized;
-                direction.y = 0f;
-
-                if (direction == Vector3.zero) yield break;
-
-                Quaternion targetRotation = Quaternion.LookRotation(direction);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * lookRotationSpeed);
-
-                if (Quaternion.Angle(transform.rotation, targetRotation) < lookStopAngleThreshold)
-                    yield break;*/
-
                 yield return null;
             }
         }
@@ -436,17 +286,14 @@ namespace LAS {
         /// farther than the default arrivalDistance (e.g. pickupRange, handOverRange).</param>
         private IEnumerator GoToRoutine(Transform target, float range = -1f)
         {
-<<<<<<< HEAD
             float effectiveRange = range > 0f ? range : arrivalDistance;
 
             // Ensure the agent's own stoppingDistance doesn't fight our range check.
             agent.stoppingDistance = 0f;
-=======
+
             animator.SetTrigger("StartWalking");
-            
             lookAtCoroutine = StartCoroutine(LookAtRoutine(target));
-            
->>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
+
             agent.SetDestination(target.position);
 
             float startTime = Time.time;
@@ -465,7 +312,6 @@ namespace LAS {
                     StopCoroutine(lookAtCoroutine);
                     yield break;
                 }
-<<<<<<< HEAD
 
                 // Still calculating path — keep waiting.
                 if (agent.pathPending)
@@ -484,13 +330,8 @@ namespace LAS {
 
                 // Arrived within range.
                 if (agent.remainingDistance <= effectiveRange)
-=======
-                
-                if (!agent.pathPending && agent.remainingDistance <= arrivalDistance)
->>>>>>> 4bf6ac1 (Added animated characters to doctor and nurse NPCs)
                 {
                     Debug.Log(agent.remainingDistance);
-                    
                     animator.SetTrigger("StopWalking");
                     agent.ResetPath();
                     OnArrivedAtTarget?.Invoke(this, target);
@@ -608,7 +449,7 @@ namespace LAS {
                     heldObject.transform.localPosition = Vector3.zero;
                     Rigidbody rb = heldObject.GetComponent<Rigidbody>();
                     if (rb != null) rb.isKinematic = false;
-                    
+
                     var interactable = heldObject.GetComponent<InteractableItem>();
                     if (interactable != null)
                     {
@@ -778,7 +619,7 @@ namespace LAS {
             heldObject.transform.SetParent(null);
             Rigidbody rb = heldObject.GetComponent<Rigidbody>();
             if (rb != null) rb.isKinematic = false;
-            
+
             var interactable = heldObject.GetComponent<InteractableItem>();
             if (interactable != null)
             {
