@@ -331,7 +331,6 @@ namespace LAS {
                 // Arrived within range.
                 if (agent.remainingDistance <= effectiveRange)
                 {
-                    Debug.Log(agent.remainingDistance);
                     animator.SetTrigger("StopWalking");
                     agent.ResetPath();
                     OnArrivedAtTarget?.Invoke(this, target);
