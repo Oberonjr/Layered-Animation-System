@@ -1,10 +1,11 @@
 using UnityEngine;
 using LAS;
 /// <summary>
-/// Defines one action type. This asset is the KEY in NPCActionDispatcher's dictionary.
-/// The VALUE (UnityEvent) is wired to ActionBridge methods in the dispatcher inspector.
-/// </summary>
-/// 
+/// Defines one action type.
+/// Subclasses override MakeState(primary, secondary) to produce the concrete INPCState
+/// that the dispatcher hands to the NPC's FSM.
+///</summary>
+ 
 
 namespace LAS
 {
@@ -58,6 +59,11 @@ namespace LAS
                     return true;
 
             return false;
+        }
+
+        public virtual NPCActionState MakeState(Transform primary, Transform secondary)
+        {
+            return new NPCActionState(this);
         }
     }
 }

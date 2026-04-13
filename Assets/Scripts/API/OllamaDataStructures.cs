@@ -97,12 +97,4 @@ namespace LAS
         System
     }
 
-    /// <summary>
-    /// Serializable UnityEvent for NPC action execution.
-    /// Signature: void(NPCBehaviourController npc, Transform primaryTarget, Transform secondaryTarget)
-    /// Used as the VALUE in NPCActionDispatcher's actionHandlers dictionary.
-    /// Wired in the Inspector to connect ActionDefinition ScriptableObjects to ActionBridge methods.
-    /// </summary>
-    [System.Serializable]
-    public class NPCActionCallback : UnityEngine.Events.UnityEvent<NPCBehaviourController, UnityEngine.Transform, UnityEngine.Transform> { }
 }

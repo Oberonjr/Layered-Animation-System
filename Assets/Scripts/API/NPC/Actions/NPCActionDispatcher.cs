@@ -1,8 +1,6 @@
-using AYellowpaper.SerializedCollections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Events;
 using LAS;
 
 
@@ -10,11 +8,10 @@ namespace LAS
 {
     /// <summary>
     /// Routes LLM action commands to execution.
-    /// Dictionary maps ActionDefinition ScriptableObject → UnityEvent wired to ActionBridge method.
-    /// The SO's actionKey field is used for LLM lookup, but the SO itself is the dictionary key.
+    /// Maintains a list of NPCActionDefinition SOs; each definition's MakeState() method
+    /// produces the appropriate INPCState which is handed directly to the NPC's FSM.
     /// This is the central routing hub for all NPC actions in the system.
     /// </summary>
-    /// 
     public class NPCActionDispatcher : MonoBehaviour
     {
         /// <summary>
@@ -23,11 +20,9 @@ namespace LAS
         /// </summary>
         public static NPCActionDispatcher Instance { get; private set; }
 
-        [Header("Action Handlers")]
-        [Tooltip("Map ActionDefinition assets to ActionBridge methods. Wire the UnityEvent to the appropriate Execute* method in the Inspector. Each entry connects an action definition (what the LLM can request) to the code that executes it.")]
-        [SerializedDictionary("Action Definition", "Execution Method")]
-        public SerializedDictionary<NPCActionDefinition, NPCActionCallback> actionHandlers
-            = new SerializedDictionary<NPCActionDefinition, NPCActionCallback>();
+        [Header("Action Definitions")]
+        [Tooltip("All NPCActionDefinition assets available to this dispatcher.")]
+        [SerializeField] private List<NPCActionDefinition> actionDefinitions = new List<NPCActionDefinition>();
 
         /// <summary>
         /// Internal lookup dictionary mapping action_key strings (from LLM) to NPCActionDefinition objects.
@@ -80,7 +75,7 @@ namespace LAS
         }
 
         /// <summary>
-        /// Builds the keyLookup dictionary from actionHandlers.
+        /// Builds the keyLookup dictionary from actionDefinitions.
         /// Maps each action's unique action_key (e.g., "PICK_UP") to its ActionDefinition object.
         /// Warns if duplicate action keys are found (only the first will be used).
         /// </summary>
@@ -88,18 +83,18 @@ namespace LAS
         {
             keyLookup = new Dictionary<string, NPCActionDefinition>();
 
-            foreach (var kvp in actionHandlers)
+            foreach (var def in actionDefinitions)
             {
-                if (kvp.Key == null) continue;
+                if (def == null) continue;
 
-                string key = kvp.Key.actionKey;
+                string key = def.actionKey;
                 if (keyLookup.ContainsKey(key))
                 {
                     Debug.LogWarning($"[Dispatcher] Duplicate action key '{key}' - only first will be used.");
                     continue;
                 }
 
-                keyLookup[key] = kvp.Key;
+                keyLookup[key] = def;
             }
 
             Debug.Log($"[Dispatcher] Registered {keyLookup.Count} actions.");
@@ -139,13 +134,6 @@ namespace LAS
                 return;
             }
 
-            // Look up the wired callback
-            if (!actionHandlers.TryGetValue(actionDef, out NPCActionCallback callback))
-            {
-                Debug.LogWarning($"[Dispatcher] No callback wired for action: '{actionDef.displayName}'");
-                return;
-            }
-
             // Resolve targets
             Transform primaryTarget = string.IsNullOrEmpty(command.action_target)
                 ? null
@@ -170,8 +158,9 @@ namespace LAS
             Debug.Log($"[Dispatcher] {npcCtrl.npcName} → {actionDef.displayName}" +
                       $"{(primaryTarget != null ? $" → {primaryTarget.name}" : "")}");
 
-            // Invoke the callback (wired to ActionBridge method)
-            callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
+            var state = actionDef.MakeState(primaryTarget, secondaryTarget);
+            if (state != null)
+                behaviour.FSM.Interrupt(state);
         }
 
         /// <summary>
@@ -203,30 +192,30 @@ namespace LAS
             {
                 if (string.IsNullOrEmpty(step.action_key) || step.action_key == "NONE") continue;
 
+                if (!keyLookup.TryGetValue(step.action_key, out var def))
+                {
+                    Debug.LogWarning($"[Dispatcher] Sequence step: unknown key '{step.action_key}'.");
+                    continue;
+                }
+
                 Transform primary   = NPCActionTargetRegistry.Instance?.Resolve(step.action_target);
                 Transform secondary = NPCActionTargetRegistry.Instance?.Resolve(step.action_secondary_target);
 
-                // Target-type validation (same guard as single-action Dispatch)
-                if (primary != null && keyLookup.TryGetValue(step.action_key, out var def))
+                if (primary != null && !IsTargetTypeValid(def, primary))
                 {
-                    if (!IsTargetTypeValid(def, primary))
-                    {
-                        var targetComp = primary.GetComponent<IActionTarget>()
-                                      ?? primary.GetComponentInParent<IActionTarget>();
-                        Debug.LogWarning($"[Dispatcher] Sequence step '{step.action_key}': " +
-                            $"invalid target type for '{primary.name}' ({targetComp?.Type.ToString() ?? "unknown"}). Skipping.");
-                        continue;
-                    }
+                    var targetComp = primary.GetComponent<IActionTarget>()
+                                  ?? primary.GetComponentInParent<IActionTarget>();
+                    Debug.LogWarning($"[Dispatcher] Sequence step '{step.action_key}': " +
+                        $"invalid target type for '{primary.name}' ({targetComp?.Type.ToString() ?? "unknown"}). Skipping.");
+                    continue;
                 }
 
-                if (behaviour.TryEnqueueAction(step.action_key, primary, secondary))
-                {
-                    queued++;
-                    string label = string.IsNullOrEmpty(step.action_target)
-                        ? step.action_key
-                        : $"{step.action_key}({step.action_target})";
-                    stepSummary.Append(queued > 1 ? " → " : "").Append(label);
-                }
+                behaviour.FSM.Enqueue(def.MakeState(primary, secondary));
+                queued++;
+                string label = string.IsNullOrEmpty(step.action_target)
+                    ? step.action_key
+                    : $"{step.action_key}({step.action_target})";
+                stepSummary.Append(queued > 1 ? " → " : "").Append(label);
             }
 
             if (queued > 0)
@@ -251,13 +240,9 @@ namespace LAS
                 return;
             }
 
-            if (!actionHandlers.TryGetValue(actionDef, out NPCActionCallback callback))
-            {
-                Debug.LogWarning($"[Dispatcher] No callback wired for action: '{actionDef.displayName}'");
-                return;
-            }
-
-            callback?.Invoke(behaviour, primaryTarget, secondaryTarget);
+            var state = actionDef.MakeState(primaryTarget, secondaryTarget);
+            if (state != null)
+                behaviour.FSM.Interrupt(state);
         }
 
         /// <summary>
@@ -269,7 +254,7 @@ namespace LAS
         /// <returns>A formatted string listing all actions, their keys, descriptions, and parameters.</returns>
         public string BuildActionVocabularyPrompt()
         {
-            if (actionHandlers == null || actionHandlers.Count == 0)
+            if (actionDefinitions == null || actionDefinitions.Count == 0)
                 return "";
 
             var sb = new System.Text.StringBuilder();
@@ -277,11 +262,10 @@ namespace LAS
             sb.AppendLine("You MAY include one action per response. Use EXACTLY these action_key values:");
             sb.AppendLine();
 
-            foreach (var kvp in actionHandlers)
+            foreach (var def in actionDefinitions)
             {
-                if (kvp.Key == null) continue;
+                if (def == null) continue;
 
-                var def = kvp.Key;
                 sb.AppendLine($"  action_key: \"{def.actionKey}\"");
                 sb.AppendLine($"  → {def.llmDescription}");
                 if (def.requiresTarget)
@@ -327,10 +311,9 @@ namespace LAS
 
             // One line per action key — key, target slot, first sentence of description
             sb.AppendLine("ACTION KEYS:");
-            foreach (var kvp in actionHandlers)
+            foreach (var def in actionDefinitions)
             {
-                if (kvp.Key == null) continue;
-                var def = kvp.Key;
+                if (def == null) continue;
                 string targetSlot = def.requiresTarget ? $" ({def.targetDescription})" : "";
                 // First sentence of llmDescription only — keeps it short but preserves disambiguation
                 string desc = def.llmDescription ?? "";
@@ -365,9 +348,9 @@ namespace LAS
         /// <returns>An enumerable of all non-null action definitions in actionHandlers.</returns>
         public IEnumerable<NPCActionDefinition> GetActiveActions()
         {
-            foreach (var kvp in actionHandlers)
-                if (kvp.Key != null)
-                    yield return kvp.Key;
+            foreach (var def in actionDefinitions)
+                if (def != null)
+                    yield return def;
         }
     }
 }

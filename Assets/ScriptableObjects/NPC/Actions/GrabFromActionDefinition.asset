@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a02fbcc8d9f158b48962007b3b50e35a, type: 3}
+  m_Name: GrabFromActionDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.GrabFromActionDefinition
+  actionKey: GRAB_FROM
+  displayName: Grab from
+  llmDescription: Walk to another person and take the object they are currently holding.
+    Use when retrieving an item from a colleague.
+  requiresTarget: 1
+  requiresSecondaryTarget: 0
+  targetDescription: The name of the NPC to take the objecty from. Must be one of
+    the valid target names listed below.
+  secondaryTargetDescription:
+  validTargetTypes: 0000000001000000
+  editorColor: {r: 0.37022638, g: 0.33490568, b: 1, a: 1}

@@ -36,8 +36,14 @@ public class IKLookAt : MonoBehaviour
     public void LookAt(Transform lookAtTarget)
     {
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position + Vector3.up - headBone.position);
-        
+
         targetRotation = angle.eulerAngles - Quaternion.LookRotation(transform.forward).eulerAngles;
+    }
+
+    /// <summary>Returns the head and torso to their neutral (forward-facing) rotation.</summary>
+    public void ClearTarget()
+    {
+        targetRotation = Vector3.zero;
     }
 
     private void RotateHead(Vector3 angle)

@@ -6,9 +6,12 @@
   <component name="ChangeListManager">
     <list default="true" id="66680b18-c45c-45ac-844d-dac18d71ab5c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/ActionBridge.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/ActionBridge.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDefinition.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDefinition.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCBehaviourController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCBehaviourController.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/OllamaDataStructures.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/OllamaDataStructures.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,13 +25,6 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/LLM/LLMProviderBase.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/ActionBridge.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDefinition.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCBehaviourController.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCController.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCManager.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="ProjectColorInfo">{
@@ -40,23 +36,23 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Attach to Unity Editor.Attach to Unity Editor.executor&quot;: &quot;Debug&quot;,
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature/action-system-streamlining&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Attach to Unity Editor.Attach to Unity Editor.executor": "Debug",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "rewrite/FSM-actions",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager" selected="Attach to Unity Editor.Attach to Unity Editor">
     <configuration name="Start Unity" type="RunUnityExe" factoryName="Unity Executable">
       <option name="EXE_PATH" value="C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe" />
@@ -104,10 +100,7 @@
       <updated>1774359383708</updated>
       <workItem from="1774359384754" duration="6156000" />
       <workItem from="1774429372880" duration="16237000" />
-      <workItem from="1774947236851" duration="5360000" />
-      <workItem from="1774972801234" duration="1814000" />
-      <workItem from="1775548309344" duration="987000" />
-      <workItem from="1775717356539" duration="1226000" />
+      <workItem from="1774947236851" duration="10117000" />
     </task>
     <servers />
   </component>
