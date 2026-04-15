@@ -15,12 +15,17 @@ namespace LAS {
     public class NPCManager : MonoBehaviour
     {
         [Header("UI Elements")]
+        [Tooltip("Input field where the player types messages.")]
         [SerializeField] private TMP_InputField playerInputField;
+        [Tooltip("Button that submits the player's typed message.")]
         [SerializeField] private Button sendButton;
+        [Tooltip("Scroll view content transform where chat message prefabs are instantiated.")]
         [SerializeField] private Transform chatContentParent;
+        [Tooltip("Prefab used to display each line of chat in the UI.")]
         [SerializeField] private GameObject chatMessagePrefab;
-    
+
         [Header("Scenario Configuration")]
+        [Tooltip("JSON file describing the scenario: setting, characters, rules, and progression steps.")]
         [SerializeField] private TextAsset scenarioConfigFile;
 
         [Header("LLM Provider")]
@@ -50,16 +55,23 @@ namespace LAS {
         };
 
         [Header("Streaming Settings")]
+        [Tooltip("Reveal NPC dialogue word-by-word in the UI rather than all at once.")]
         [SerializeField] private bool enableSimulatedStreaming = true;
+        [Tooltip("How many characters per second appear when streaming dialogue. Higher = faster reveal.")]
         [SerializeField] [Range(10f, 200f)] private float charactersPerSecond = 50f;
-        [SerializeField] private bool adaptiveStreaming = true; // Adjusts speed based on generation time
-    
+        [Tooltip("Speed up or slow down the streaming reveal based on how long the LLM took to respond.")]
+        [SerializeField] private bool adaptiveStreaming = true;
+
         [Header("Context Management")]
+        [Tooltip("How many past messages are included in each LLM request. Higher = more context, higher cost.")]
         [SerializeField] private int contextHistoryLimit = 15;
+        [Tooltip("Include the current scenario progression step in the prompt sent to the LLM.")]
         [SerializeField] private bool includeProgressionContext = true;
-    
+
         [Header("Runtime Info")]
+        [Tooltip("Read-only. Tracks the current scenario progression step at runtime.")]
         [SerializeField] private int currentProgressionStep = 0;
+        [Tooltip("Read-only. All NPCControllers currently registered with this manager.")]
         [SerializeField] private List<NPCController> registeredNPCs = new List<NPCController>();
 
         [Header("NPC Character Mapping")]
@@ -77,8 +89,11 @@ namespace LAS {
         [SerializeField] private bool generateAliasesOnStartup = true;
 
         [Header("Debug")]
+        [Tooltip("Log verbose internal state (NPC assignments, initialization steps) to the console.")]
         [SerializeField] public bool showDetailedDebug = false;
+        [Tooltip("Print the full prompt sent to the LLM before each request.")]
         [SerializeField] public bool logPrompts = false;
+        [Tooltip("Print the raw LLM response text after each request.")]
         [SerializeField] public bool logLLMResponses = false;
     
         private ConversationFlowController flowController;

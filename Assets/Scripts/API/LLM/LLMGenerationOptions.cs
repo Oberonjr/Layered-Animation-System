@@ -14,10 +14,10 @@ namespace LAS
         [Tooltip("Controls randomness. 0 = deterministic, 2 = very random. Keep low (~0.1) for action classification.")]
         [Range(0.0f, 2.0f)] public float temperature = 0.7f;
 
-        [Tooltip("Nucleus sampling threshold (0–1). Lower = more focused, higher = more diverse.")]
+        [Tooltip("Limits word choices to the most likely options (0–1). Lower = more focused, higher = more varied.")]
         [Range(0.1f, 1.0f)] public float topP = 0.9f;
 
-        [Tooltip("Top-K sampling limit. Restricts output to the K most likely tokens. Provider-specific support varies.")]
+        [Tooltip("How many word options the AI considers at each step. Lower = more predictable. Not all providers support this.")]
         [Range(1f, 100f)] public float topK = 40f;
 
         [Tooltip("Maximum number of tokens to generate. Use low values (e.g. 80) for classification steps.")]

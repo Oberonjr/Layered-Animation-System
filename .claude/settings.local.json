@@ -6,7 +6,10 @@
       "Bash(for f:*)",
       "Bash(do echo:*)",
       "Read(//c/Projects/layered-animation-system/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(find /c/Projects/layered-animation-system/Assets -type f -name *.cs)",
+      "Bash(find /c/Projects/layered-animation-system/Assets/Scripts -type f -name *.cs)",
+      "Bash(grep *)"
     ]
   }
 }

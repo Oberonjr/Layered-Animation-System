@@ -18,23 +18,35 @@ namespace LAS
     public class ConversationFlowController : MonoBehaviour
     {
         [Header("Flow Settings")]
+        [Tooltip("Allow NPCs to continue talking on their own after each response.")]
         [SerializeField] private bool enableAutoConversation = true;
+        [Tooltip("Chance (0–1) that an NPC follows up after another NPC finishes speaking.")]
         [SerializeField][Range(0f, 1f)] private float npcFollowUpProbability = 0.6f;
+        [Tooltip("How many NPC messages can be sent back-to-back before waiting for the player to respond.")]
         [SerializeField] private int maxConsecutiveNPCMessages = 3;
+        [Tooltip("Minimum seconds between NPC auto-responses.")]
         [SerializeField] private float minTimeBetweenNPCMessages = 1.5f;
+        [Tooltip("Maximum seconds between NPC auto-responses.")]
         [SerializeField] private float maxTimeBetweenNPCMessages = 4f;
 
         [Header("Player Interaction")]
+        [Tooltip("Whether the player interacts via keyboard typing or voice input.")]
         [SerializeField] private InputMode inputMode = InputMode.Typing;
+        [Tooltip("How long the player must be idle (seconds) before an NPC prompts them to respond.")]
         [SerializeField] private float playerIdleTimeBeforePrompt = 15f;
-        [SerializeField] private float typingDetectionDelay = 0.3f; // Reduced for faster response
+        [Tooltip("Seconds to wait after a keypress before treating it as the player starting to type. Prevents accidental interruptions.")]
+        [SerializeField] private float typingDetectionDelay = 0.3f;
 
         [Header("Context Awareness")]
+        [Tooltip("Boost NPC follow-up chance based on context: questions and direct name-addressing raise the probability.")]
         [SerializeField] private bool useContextualDecisions = true;
-        [SerializeField] private float questionResponseProbability = 0.9f; // High chance to respond to questions
-        [SerializeField] private float directAddressProbability = 0.95f; // Very high chance if addressed directly
+        [Tooltip("Chance (0–1) that an NPC responds when the last message ended with a question.")]
+        [SerializeField] private float questionResponseProbability = 0.9f;
+        [Tooltip("Chance (0–1) that an NPC responds when called by name in the last message.")]
+        [SerializeField] private float directAddressProbability = 0.95f;
 
         [Header("Debug")]
+        [Tooltip("Print conversation flow decisions to the console.")]
         [SerializeField] private bool showDebugLogs = true;
 
         private NPCManager npcManager;
