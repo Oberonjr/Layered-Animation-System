@@ -147,13 +147,18 @@ namespace LAS
                 ParseChunks(streamHandler.GetNewText(), sb);
 
             bool success = www.result == UnityWebRequest.Result.Success;
+            bool wasAborted = www.result == UnityWebRequest.Result.ConnectionError;
             string error = www.error;
             www.Dispose();
             _activeRequest = null;
 
             if (!success)
             {
-                Debug.LogError($"[OllamaProvider] Request failed: {error}");
+                // Aborts are intentional (player interrupted) — log at a lower level to avoid noise.
+                if (wasAborted && error != null && error.Contains("aborted"))
+                    Debug.LogWarning("[OllamaProvider] Request interrupted by player.");
+                else
+                    Debug.LogError($"[OllamaProvider] Request failed: {error}");
                 yield break;
             }
 

@@ -651,6 +651,12 @@ namespace LAS {
                     _streamingTextCoroutine = StartCoroutine(StreamTextToMessage(tempMessage, finalResponse.dialogue, streamSpeed));
                     yield return _streamingTextCoroutine;
                     _streamingTextCoroutine = null;
+
+                    // If InterruptCurrentGeneration() was called during streaming it already
+                    // broadcast NPCFinishedSpeaking and reset state — bail out here to avoid
+                    // a second broadcast that would leak an orphaned auto-conversation coroutine.
+                    if (_interruptGenerationFlag)
+                        yield break;
                 }
                 else
                 {
@@ -943,7 +949,10 @@ namespace LAS {
                         if (i == currentProgressionStep)
                         {
                             prompt.AppendLine($"  Description: {step.description}");
-                            prompt.AppendLine($"  Key points: {string.Join(", ", step.teaching_moments)}");
+                            if (step.key_points?.Length > 0)
+                                prompt.AppendLine($"  Key points: {string.Join(", ", step.key_points)}");
+                            if (step.teaching_moments?.Length > 0)
+                                prompt.AppendLine($"  Teaching moments: {string.Join(", ", step.teaching_moments)}");
                         }
                     }
                     prompt.AppendLine();
