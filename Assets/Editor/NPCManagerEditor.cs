@@ -135,6 +135,40 @@ namespace LAS
 
             EditorGUILayout.Space(10);
 
+            // ── Defaults ─────────────────────────────────────────────────────────
+            EditorGUILayout.LabelField("=== Defaults ===", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Reset individual text fields to their built-in defaults. " +
+                "Supports Undo (Ctrl+Z).",
+                UnityEditor.MessageType.None);
+
+            if (GUILayout.Button("Reset Alias Prompt Template to Default"))
+                ResetStringProperty("aliasConfig.promptTemplate",
+                    AliasGeneratorConfig.DefaultPromptTemplate,
+                    "Reset Alias Prompt Template to Default");
+
+            if (GUILayout.Button("Reset NPC Conversation Prompt to Default"))
+                ResetStringProperty("conversationPrompts.npcConversationPrompt",
+                    ConversationPromptsSettings.DefaultNPCConversationPrompt,
+                    "Reset NPC Conversation Prompt to Default");
+
+            if (GUILayout.Button("Reset Idle Player Prompt to Default"))
+                ResetStringProperty("conversationPrompts.idlePrompt",
+                    ConversationPromptsSettings.DefaultIdlePrompt,
+                    "Reset Idle Player Prompt to Default");
+
+            if (GUILayout.Button("Reset Critical Rules to Default"))
+                ResetStringProperty("rulesAndGuidelines.criticalRules",
+                    RulesAndGuidelinesSettings.DefaultCriticalRules,
+                    "Reset Critical Rules to Default");
+
+            if (GUILayout.Button("Reset Behavior Guidelines to Default"))
+                ResetStringProperty("rulesAndGuidelines.behaviorGuidelines",
+                    RulesAndGuidelinesSettings.DefaultBehaviorGuidelines,
+                    "Reset Behavior Guidelines to Default");
+
+            EditorGUILayout.Space(10);
+
             // ── Testing ───────────────────────────────────────────────────────────
             EditorGUILayout.LabelField("=== Testing ===", EditorStyles.boldLabel);
 
@@ -146,6 +180,24 @@ namespace LAS
 
             if (!Application.isPlaying)
                 EditorGUILayout.HelpBox("Testing features are only available in Play mode.", UnityEditor.MessageType.Info);
+        }
+
+        /// <summary>
+        /// Sets a serialized string property by its dot-path to the given value,
+        /// recording an Undo entry and marking the object dirty.
+        /// </summary>
+        private void ResetStringProperty(string propertyPath, string value, string undoLabel)
+        {
+            serializedObject.Update();
+            var prop = serializedObject.FindProperty(propertyPath);
+            if (prop == null)
+            {
+                Debug.LogWarning($"[NPCManagerEditor] Property not found: '{propertyPath}'");
+                return;
+            }
+            Undo.RecordObject(target, undoLabel);
+            prop.stringValue = value;
+            serializedObject.ApplyModifiedProperties();
         }
 
         private static void ExtractCharactersFromJson(NPCManager manager, TextAsset textAsset)

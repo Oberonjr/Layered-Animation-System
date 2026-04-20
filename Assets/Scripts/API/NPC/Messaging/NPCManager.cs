@@ -55,30 +55,9 @@ namespace LAS {
         };
 
         [Header("Streaming Settings")]
-        [Tooltip("Reveal NPC dialogue word-by-word in the UI rather than all at once.")]
-        [SerializeField] private bool enableSimulatedStreaming = true;
-        [Tooltip("How many characters per second appear when streaming dialogue. Higher = faster reveal.")]
-        [SerializeField] [Range(10f, 200f)] private float charactersPerSecond = 50f;
-        [Tooltip("Speed up or slow down the streaming reveal based on how long the LLM took to respond.")]
-        [SerializeField] private bool adaptiveStreaming = true;
-
-        [Header("Streaming — Adaptive Speed")]
-        [Tooltip("If the LLM took longer than this many seconds to respond, streaming speed is increased to compensate.")]
-        [SerializeField] private float adaptiveSlowThreshold = 2f;
-        [Tooltip("If the LLM responded faster than this many seconds, streaming speed is slightly decreased for readability.")]
-        [SerializeField] private float adaptiveFastThreshold = 0.5f;
-        [Tooltip("Speed multiplier applied when the LLM responded faster than the fast threshold (should be < 1).")]
-        [SerializeField] [Range(0.1f, 1f)] private float adaptiveFastSpeedMultiplier = 0.7f;
-        [Tooltip("Maximum speed multiplier applied when the LLM responded slowly. Prevents text from appearing unrealistically fast.")]
-        [SerializeField] [Range(1f, 5f)] private float adaptiveMaxMultiplier = 2f;
-
-        [Header("Streaming — Pacing")]
-        [Tooltip("Delay multiplier applied after sentence-ending punctuation (. ! ?). Higher = longer dramatic pause.")]
-        [SerializeField] [Range(1f, 10f)] private float pauseAfterSentenceEnd = 3f;
-        [Tooltip("Delay multiplier applied after mid-sentence punctuation (, ; :). Creates a natural breath.")]
-        [SerializeField] [Range(1f, 5f)] private float pauseAfterComma = 2f;
-        [Tooltip("Delay multiplier applied after spaces (between words). Lower = faster word-to-word flow.")]
-        [SerializeField] [Range(0.1f, 1f)] private float pauseAfterSpace = 0.5f;
+        [Tooltip("All streaming settings: output (enable/speed), adaptive speed, and per-character pacing. " +
+                 "Each sub-section is collapsible in the inspector.")]
+        [SerializeField] private StreamingSettings streaming = new StreamingSettings();
 
         [Header("Context Management")]
         [Tooltip("How many past messages are included in each LLM request. Higher = more context, higher cost.")]
@@ -110,45 +89,15 @@ namespace LAS {
         [SerializeField] private AliasGeneratorConfig aliasConfig = new AliasGeneratorConfig();
 
         [Header("Conversation Prompts")]
-        [Tooltip("When enabled, the NPC-to-NPC prompt below overrides whatever is in the scenario JSON.")]
-        [SerializeField] private bool overrideNPCConversationPrompt = false;
-        [Tooltip("Prompt used when NPCs continue talking to each other in auto-conversation mode. " +
-                 "Used as fallback if the scenario JSON has no 'npc_conversation_prompt'. " +
-                 "Should be scenario-neutral — the NPC characters and history supply the domain context.")]
-        [TextArea(2, 4)]
-        [SerializeField] private string fallbackNPCConversationPrompt =
-            "Continue the conversation naturally — pick up on what was just said, ask a follow-up question, or move the topic forward.";
-        [Tooltip("When enabled, the idle prompt below overrides whatever is in the scenario JSON.")]
-        [SerializeField] private bool overrideIdlePrompt = false;
-        [Tooltip("Prompt used when the player has been idle and an NPC should re-engage them. " +
-                 "Used as fallback if the scenario JSON has no 'idle_player_prompt'.")]
-        [TextArea(2, 4)]
-        [SerializeField] private string fallbackIdlePrompt =
-            "The player has been quiet for a while. One of you should check in, ask if they have questions, or invite them to participate.";
+        [Tooltip("Fallback prompts for NPC-to-NPC auto-conversation and player idle re-engagement. " +
+                 "Each prompt is read from the scenario JSON first; the inspector values act as fallbacks " +
+                 "or overrides depending on the toggle inside.")]
+        [SerializeField] private ConversationPromptsSettings conversationPrompts = new ConversationPromptsSettings();
 
-        [Header("Critical Rules")]
-        [Tooltip("When enabled, the rules text below overrides the 'critical_rules' array in the scenario JSON.")]
-        [SerializeField] private bool overrideCriticalRules = false;
-        [Tooltip("High-priority conversation flow rules injected verbatim into every prompt. " +
-                 "Used as fallback if the scenario JSON has no 'critical_rules' array. " +
-                 "Right-click this component and choose 'Extract Critical Rules from JSON' to pull them from the loaded scenario.")]
-        [TextArea(4, 10)]
-        [SerializeField] private string fallbackCriticalRules =
-            "• If YOU just asked a question, wait for someone else to answer — never answer your own question.\n" +
-            "• Never have multiple back-and-forth exchanges with yourself.\n" +
-            "• If the player uses a vague term that could refer to a known item, ask for clarification using the actual item name.\n" +
-            "• If the player says something completely unrecognisable or off-topic, state clearly that you don't understand and redirect to the current task.";
-
-        [Header("Behavior Guidelines")]
-        [Tooltip("When enabled, the guidelines text below overrides the 'behavior_guidelines' array in the scenario JSON.")]
-        [SerializeField] private bool overrideBehaviorGuidelines = false;
-        [Tooltip("Overrides the section header label for behavior guidelines in the LLM prompt. " +
-                 "Leave empty to use the label from the scenario JSON (or 'BEHAVIOR GUIDELINES' if absent).")]
-        [SerializeField] private string behaviorSectionLabelOverride = "";
-        [Tooltip("Domain-specific NPC behavior guidelines injected into every prompt. " +
-                 "Used as fallback if the scenario JSON has no 'behavior_guidelines' array.")]
-        [TextArea(4, 10)]
-        [SerializeField] private string fallbackBehaviorGuidelines = "";
+        [Header("Rules and Guidelines")]
+        [Tooltip("Critical conversation-flow rules and domain-specific behavior guidelines injected into every LLM prompt. " +
+                 "Both blocks are read from the scenario JSON first; the inspector values act as fallbacks or overrides.")]
+        [SerializeField] private RulesAndGuidelinesSettings rulesAndGuidelines = new RulesAndGuidelinesSettings();
 
         [Header("Interrupt Settings")]
         [Tooltip("Maximum seconds to wait for an in-progress generation to stop before sending the player's queued message. " +
@@ -680,15 +629,16 @@ namespace LAS {
             // Stream dialogue text to the chat message.
             if (tempMessage != null && !string.IsNullOrEmpty(finalResponse.dialogue))
             {
-                if (enableSimulatedStreaming)
+                if (streaming.output.enableSimulatedStreaming)
                 {
-                    float streamSpeed = charactersPerSecond;
-                    if (adaptiveStreaming)
+                    float streamSpeed = streaming.output.charactersPerSecond;
+                    if (streaming.output.adaptiveStreaming)
                     {
-                        if (generationTime > adaptiveSlowThreshold)
-                            streamSpeed *= Mathf.Min(adaptiveMaxMultiplier, generationTime / adaptiveSlowThreshold);
-                        else if (generationTime < adaptiveFastThreshold)
-                            streamSpeed *= adaptiveFastSpeedMultiplier;
+                        if (generationTime > streaming.adaptiveSpeed.slowThreshold)
+                            streamSpeed *= Mathf.Min(streaming.adaptiveSpeed.maxMultiplier,
+                                                     generationTime / streaming.adaptiveSpeed.slowThreshold);
+                        else if (generationTime < streaming.adaptiveSpeed.fastThreshold)
+                            streamSpeed *= streaming.adaptiveSpeed.fastSpeedMultiplier;
                     }
                     _streamingTextCoroutine = StartCoroutine(StreamTextToMessage(tempMessage, finalResponse.dialogue, streamSpeed));
                     yield return _streamingTextCoroutine;
@@ -729,11 +679,11 @@ namespace LAS {
                 float delay = charDelay;
             
                 if (currentChar == '.' || currentChar == '!' || currentChar == '?')
-                    delay *= pauseAfterSentenceEnd;
+                    delay *= streaming.pacing.pauseAfterSentenceEnd;
                 else if (currentChar == ',' || currentChar == ';' || currentChar == ':')
-                    delay *= pauseAfterComma;
+                    delay *= streaming.pacing.pauseAfterComma;
                 else if (currentChar == ' ')
-                    delay *= pauseAfterSpace;
+                    delay *= streaming.pacing.pauseAfterSpace;
             
                 yield return new WaitForSeconds(delay);
             }
@@ -1399,58 +1349,56 @@ namespace LAS {
         // ── Effective-value helpers (JSON → inspector fallback → hard default) ───────
 
         /// <summary>
-        /// Returns the NPC-to-NPC auto-conversation prompt, preferring the JSON value unless
-        /// the inspector override flag is set or the JSON field is absent.
+        /// Returns the NPC-to-NPC auto-conversation prompt.
+        /// Priority: JSON field → inspector fallback (or inspector override if the flag is set).
         /// </summary>
         private string GetEffectiveNPCConversationPrompt()
         {
-            if (!overrideNPCConversationPrompt)
+            if (!conversationPrompts.overrideNPCConversationPrompt)
             {
                 string fromJson = scenarioConfig?.conversation_initialization?.npc_conversation_prompt;
                 if (!string.IsNullOrWhiteSpace(fromJson)) return fromJson;
             }
-            return fallbackNPCConversationPrompt;
+            return conversationPrompts.npcConversationPrompt;
         }
 
         /// <summary>
-        /// Returns the idle-player prompt, preferring the JSON value unless the inspector
-        /// override flag is set or the JSON field is absent.
+        /// Returns the idle-player re-engagement prompt.
+        /// Priority: JSON field → inspector fallback (or inspector override if the flag is set).
         /// </summary>
         private string GetEffectiveIdlePrompt()
         {
-            if (!overrideIdlePrompt)
+            if (!conversationPrompts.overrideIdlePrompt)
             {
                 string fromJson = scenarioConfig?.conversation_initialization?.idle_player_prompt;
                 if (!string.IsNullOrWhiteSpace(fromJson)) return fromJson;
             }
-            return fallbackIdlePrompt;
+            return conversationPrompts.idlePrompt;
         }
 
         /// <summary>
-        /// Returns the critical rules text, preferring the JSON array unless the inspector
-        /// override flag is set or the JSON array is absent/empty.
-        /// Each rule is prefixed with "• " so the caller can append the block verbatim.
+        /// Returns the critical rules block as a ready-to-append string (each rule prefixed with "• ").
+        /// Priority: JSON array → inspector fallback (or inspector override if the flag is set).
         /// </summary>
         private string GetEffectiveCriticalRules()
         {
-            if (!overrideCriticalRules)
+            if (!rulesAndGuidelines.overrideCriticalRules)
             {
                 var fromJson = scenarioConfig?.system_instructions?.critical_rules;
                 if (fromJson != null && fromJson.Length > 0)
                     return string.Join("\n", System.Array.ConvertAll(fromJson, r => $"• {r}"));
             }
-            return fallbackCriticalRules;
+            return rulesAndGuidelines.criticalRules;
         }
 
         /// <summary>
-        /// Returns the behavior guidelines text, preferring the JSON array unless the inspector
-        /// override flag is set or the JSON array is absent/empty.
-        /// Checks "behavior_guidelines" first, then "teaching_behavior" (legacy alias) as a fallback.
-        /// Each item is prefixed with "• " so the caller can append the block verbatim.
+        /// Returns the behavior guidelines block as a ready-to-append string (each item prefixed with "• ").
+        /// Checks "behavior_guidelines" first, then "teaching_behavior" (legacy JSON alias).
+        /// Priority: JSON array → inspector fallback (or inspector override if the flag is set).
         /// </summary>
         private string GetEffectiveBehaviorGuidelines()
         {
-            if (!overrideBehaviorGuidelines)
+            if (!rulesAndGuidelines.overrideBehaviorGuidelines)
             {
                 var fromJson = scenarioConfig?.system_instructions?.behavior_guidelines;
                 if (fromJson == null || fromJson.Length == 0)
@@ -1458,17 +1406,17 @@ namespace LAS {
                 if (fromJson != null && fromJson.Length > 0)
                     return string.Join("\n", System.Array.ConvertAll(fromJson, b => $"• {b}"));
             }
-            return fallbackBehaviorGuidelines;
+            return rulesAndGuidelines.behaviorGuidelines;
         }
 
         /// <summary>
-        /// Returns the behavior guidelines section label, preferring: inspector override (if non-empty)
-        /// → JSON field → hard default "BEHAVIOR GUIDELINES".
+        /// Returns the behavior guidelines section header label.
+        /// Priority: inspector override field (if non-empty) → JSON field → "BEHAVIOR GUIDELINES".
         /// </summary>
         private string GetEffectiveBehaviorSectionLabel()
         {
-            if (!string.IsNullOrWhiteSpace(behaviorSectionLabelOverride))
-                return behaviorSectionLabelOverride.ToUpper();
+            if (!string.IsNullOrWhiteSpace(rulesAndGuidelines.behaviorSectionLabelOverride))
+                return rulesAndGuidelines.behaviorSectionLabelOverride.ToUpper();
             string fromJson = scenarioConfig?.system_instructions?.behavior_section_label;
             return string.IsNullOrWhiteSpace(fromJson) ? "BEHAVIOR GUIDELINES" : fromJson.ToUpper();
         }
@@ -1518,13 +1466,82 @@ namespace LAS {
         }
 
         // ── Context-menu editor actions ───────────────────────────────────────────
+        // All of these appear when right-clicking the NPCManager component in the inspector.
 
         /// <summary>
-        /// Inspector context-menu action: reads the 'critical_rules' array from the loaded
-        /// scenario JSON and writes it into the inspector fallback field.
-        /// Shows a warning in the console if the JSON has no critical_rules array.
+        /// Resets the alias generator prompt template to the built-in default.
+        /// Does not touch the LLM generation parameters.
         /// </summary>
-        [ContextMenu("Extract Critical Rules from JSON")]
+        [ContextMenu("Defaults/Reset Alias Prompt Template to Default")]
+        private void ResetAliasPromptTemplateToDefault()
+        {
+            if (aliasConfig == null) aliasConfig = new AliasGeneratorConfig();
+            aliasConfig.promptTemplate = AliasGeneratorConfig.DefaultPromptTemplate;
+            Debug.Log("[NPCManager] Alias prompt template reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the alias generator LLM parameters to built-in defaults.
+        /// Does not touch the prompt template.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Alias Generator Parameters to Default")]
+        private void ResetAliasGeneratorParametersToDefault()
+        {
+            if (aliasConfig == null) aliasConfig = new AliasGeneratorConfig();
+            aliasConfig.options.temperature   = AliasGeneratorConfig.DefaultOptions.temperature;
+            aliasConfig.options.topP          = AliasGeneratorConfig.DefaultOptions.topP;
+            aliasConfig.options.topK          = AliasGeneratorConfig.DefaultOptions.topK;
+            aliasConfig.options.maxTokens     = AliasGeneratorConfig.DefaultOptions.maxTokens;
+            aliasConfig.options.repeatPenalty = AliasGeneratorConfig.DefaultOptions.repeatPenalty;
+            Debug.Log("[NPCManager] Alias generator parameters reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the NPC-to-NPC conversation prompt to the built-in scenario-neutral default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset NPC Conversation Prompt to Default")]
+        private void ResetNPCConversationPromptToDefault()
+        {
+            conversationPrompts.npcConversationPrompt = ConversationPromptsSettings.DefaultNPCConversationPrompt;
+            Debug.Log("[NPCManager] NPC conversation prompt reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the idle-player prompt to the built-in scenario-neutral default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Idle Prompt to Default")]
+        private void ResetIdlePromptToDefault()
+        {
+            conversationPrompts.idlePrompt = ConversationPromptsSettings.DefaultIdlePrompt;
+            Debug.Log("[NPCManager] Idle player prompt reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the critical rules text to the built-in default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Critical Rules to Default")]
+        private void ResetCriticalRulesToDefault()
+        {
+            rulesAndGuidelines.criticalRules = RulesAndGuidelinesSettings.DefaultCriticalRules;
+            Debug.Log("[NPCManager] Critical rules reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the behavior guidelines text to the built-in generic default.
+        /// The default is scenario-neutral and works as a starting point for any NPC setup.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Behavior Guidelines to Default")]
+        private void ResetBehaviorGuidelinesToDefault()
+        {
+            rulesAndGuidelines.behaviorGuidelines = RulesAndGuidelinesSettings.DefaultBehaviorGuidelines;
+            Debug.Log("[NPCManager] Behavior guidelines reset to default.");
+        }
+
+        /// <summary>
+        /// Reads the 'critical_rules' array from the loaded scenario JSON and writes it into
+        /// the inspector fallback field. Logs a warning if the JSON has no such array.
+        /// </summary>
+        [ContextMenu("Extract from JSON/Extract Critical Rules from JSON")]
         private void ExtractCriticalRulesFromJSON()
         {
             if (scenarioConfig == null)
@@ -1538,16 +1555,16 @@ namespace LAS {
                 Debug.LogWarning("[NPCManager] The loaded scenario JSON has no 'critical_rules' array.");
                 return;
             }
-            fallbackCriticalRules = string.Join("\n", System.Array.ConvertAll(rules, r => $"• {r}"));
-            Debug.Log($"[NPCManager] Extracted {rules.Length} critical rule(s) from JSON into the inspector fallback field.");
+            rulesAndGuidelines.criticalRules = string.Join("\n", System.Array.ConvertAll(rules, r => $"• {r}"));
+            Debug.Log($"[NPCManager] Extracted {rules.Length} critical rule(s) from JSON.");
         }
 
         /// <summary>
-        /// Inspector context-menu action: reads the 'behavior_guidelines' array from the loaded
+        /// Reads the 'behavior_guidelines' (or legacy 'teaching_behavior') array from the loaded
         /// scenario JSON and writes it into the inspector fallback field.
-        /// Shows a warning in the console if the JSON has no behavior_guidelines array.
+        /// Logs a warning if the JSON has neither array.
         /// </summary>
-        [ContextMenu("Extract Behavior Guidelines from JSON")]
+        [ContextMenu("Extract from JSON/Extract Behavior Guidelines from JSON")]
         private void ExtractBehaviorGuidelinesFromJSON()
         {
             if (scenarioConfig == null)
@@ -1557,28 +1574,14 @@ namespace LAS {
             }
             var guidelines = scenarioConfig.system_instructions?.behavior_guidelines;
             if (guidelines == null || guidelines.Length == 0)
+                guidelines = scenarioConfig.system_instructions?.teaching_behavior;
+            if (guidelines == null || guidelines.Length == 0)
             {
-                Debug.LogWarning("[NPCManager] The loaded scenario JSON has no 'behavior_guidelines' array.");
+                Debug.LogWarning("[NPCManager] The loaded scenario JSON has no 'behavior_guidelines' or 'teaching_behavior' array.");
                 return;
             }
-            fallbackBehaviorGuidelines = string.Join("\n", System.Array.ConvertAll(guidelines, b => $"• {b}"));
-            Debug.Log($"[NPCManager] Extracted {guidelines.Length} behavior guideline(s) from JSON into the inspector fallback field.");
-        }
-
-        /// <summary>
-        /// Inspector context-menu action: resets the alias generator config to built-in defaults.
-        /// </summary>
-        [ContextMenu("Reset Alias Generator to Default")]
-        private void ResetAliasGeneratorToDefault()
-        {
-            if (aliasConfig == null) aliasConfig = new AliasGeneratorConfig();
-            aliasConfig.promptTemplate      = AliasGeneratorConfig.DefaultPromptTemplate;
-            aliasConfig.options.temperature   = AliasGeneratorConfig.DefaultOptions.temperature;
-            aliasConfig.options.topP          = AliasGeneratorConfig.DefaultOptions.topP;
-            aliasConfig.options.topK          = AliasGeneratorConfig.DefaultOptions.topK;
-            aliasConfig.options.maxTokens     = AliasGeneratorConfig.DefaultOptions.maxTokens;
-            aliasConfig.options.repeatPenalty = AliasGeneratorConfig.DefaultOptions.repeatPenalty;
-            Debug.Log("[NPCManager] Alias generator reset to default parameters and prompt.");
+            rulesAndGuidelines.behaviorGuidelines = string.Join("\n", System.Array.ConvertAll(guidelines, b => $"• {b}"));
+            Debug.Log($"[NPCManager] Extracted {guidelines.Length} behavior guideline(s) from JSON.");
         }
 
         public void AdvanceProgressionStep()
