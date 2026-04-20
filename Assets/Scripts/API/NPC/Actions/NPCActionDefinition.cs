@@ -12,9 +12,15 @@ namespace LAS
     [CreateAssetMenu(fileName = "NewNPCAction", menuName = "NPC/Action Definition")]
     public class NPCActionDefinition : ScriptableObject
     {
+        /// <summary>
+        /// The action key used when the NPC performs no physical action.
+        /// Reference this constant instead of the literal string "NONE" throughout the codebase.
+        /// </summary>
+        public const string NoneKey = "NONE";
+
         [Header("Identity")]
         [Tooltip("Exact string the LLM must output in the 'action_key' field. Uppercase, underscore-separated (e.g., 'PICK_UP', 'LOOK_AT_PLAYER'). This must be unique across all action definitions.")]
-        public string actionKey = "NONE";
+        public string actionKey = NoneKey;
 
         [Tooltip("Human-readable name for editor display and debugging. Shown in inspector buttons and log messages.")]
         public string displayName = "No Action";
