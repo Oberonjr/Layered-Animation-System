@@ -107,31 +107,47 @@ namespace LAS
             // Detect player wanting to speak based on input mode
             if (inputMode == InputMode.Typing)
             {
-                // Use New Input System - compatible with both keyboard and VR
-                if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame && !playerIsInterrupting)
+                var inputField = npcManager?.GetPlayerInputField();
+
+                if (Keyboard.current != null)
                 {
-                    // Count how many non-modifier keys were pressed this frame
-                    // Modifier-only presses (lone Shift, Ctrl, Alt) don't count as intent to type
-                    bool shiftOnly = Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.ctrlKey.wasPressedThisFrame
-                                      && !Keyboard.current.altKey.wasPressedThisFrame;
-                    bool ctrlOnly = Keyboard.current.ctrlKey.wasPressedThisFrame
-                                      && !Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.altKey.wasPressedThisFrame;
-                    bool altOnly = Keyboard.current.altKey.wasPressedThisFrame
-                                      && !Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.ctrlKey.wasPressedThisFrame;
-
-                    bool isLoneModifier = shiftOnly || ctrlOnly || altOnly;
-
-                    if (!isLoneModifier)
+                    // Enter / numpad-Enter focuses the chat box when it is not already active,
+                    // so the player does not need to click it between messages.
+                    if (inputField != null && !inputField.isFocused)
                     {
-                        StartCoroutine(DetectPlayerInterruptIntent());
+                        if (Keyboard.current.enterKey.wasPressedThisFrame ||
+                            Keyboard.current.numpadEnterKey.wasPressedThisFrame)
+                        {
+                            inputField.ActivateInputField();
+                            inputField.Select();
+                        }
+                    }
+
+                    // Use New Input System - compatible with both keyboard and VR
+                    if (Keyboard.current.anyKey.wasPressedThisFrame && !playerIsInterrupting)
+                    {
+                        // Count how many non-modifier keys were pressed this frame
+                        // Modifier-only presses (lone Shift, Ctrl, Alt) don't count as intent to type
+                        bool shiftOnly = Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.ctrlKey.wasPressedThisFrame
+                                          && !Keyboard.current.altKey.wasPressedThisFrame;
+                        bool ctrlOnly = Keyboard.current.ctrlKey.wasPressedThisFrame
+                                          && !Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.altKey.wasPressedThisFrame;
+                        bool altOnly = Keyboard.current.altKey.wasPressedThisFrame
+                                          && !Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.ctrlKey.wasPressedThisFrame;
+
+                        bool isLoneModifier = shiftOnly || ctrlOnly || altOnly;
+
+                        if (!isLoneModifier)
+                        {
+                            StartCoroutine(DetectPlayerInterruptIntent());
+                        }
                     }
                 }
 
                 // Clear interruption flag if input field is empty and not focused
-                var inputField = npcManager?.GetPlayerInputField();
                 if (inputField != null && !inputField.isFocused && string.IsNullOrEmpty(inputField.text))
                 {
                     playerIsInterrupting = false;

@@ -171,6 +171,11 @@ namespace LAS {
             if (playerInputField != null)
             {
                 playerInputField.onSubmit.AddListener(delegate { OnPlayerSendMessage(); });
+
+                // Ensure the text caret is visible and blinking when the field is focused.
+                // TMP_InputField defaults can vary by prefab; set explicit values here as a guarantee.
+                playerInputField.caretWidth     = 2;
+                playerInputField.caretBlinkRate = 0.85f;
             }
         
             StartCoroutine(InitializeSystem());
@@ -379,6 +384,9 @@ namespace LAS {
 
             string message = playerInputField.text.Trim();
             playerInputField.text = "";
+
+            // Keep the input field focused so the player can immediately type their next message.
+            playerInputField.ActivateInputField();
 
             // ── Command intercept ──────────────────────────────────────────────────
             if (message.StartsWith("/"))

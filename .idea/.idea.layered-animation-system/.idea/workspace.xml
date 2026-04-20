@@ -6,9 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="66680b18-c45c-45ac-844d-dac18d71ab5c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Editor/NPCManagerEditor.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Editor/NPCManagerEditor.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/LLMTesting/NPCTesting 5.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/LLMTesting/NPCTesting 5.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Messaging/NPCManager.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
