@@ -4775,7 +4775,7 @@ PrefabInstance:
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: scenarioConfigFile
       value: 
-      objectReference: {fileID: 4900000, guid: d5b642fe5df12ab49a19da5fcca7e8c1, type: 3}
+      objectReference: {fileID: 4900000, guid: 892451c8832f93b499bec3d0f7a31ef7, type: 3}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: generateAliasesOnStartup
       value: 0
