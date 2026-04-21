@@ -4775,7 +4775,7 @@ PrefabInstance:
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: llmProvider
       value: 
-      objectReference: {fileID: 11400000, guid: b2bb2f81ff7956c49bafd514d9bbf8f2, type: 2}
+      objectReference: {fileID: 11400000, guid: f354b8bc7c2f8184999e5d61467210ed, type: 2}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: logLLMResponses
       value: 1
@@ -4818,7 +4818,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: dialogueOptions.temperature
-      value: 0.6
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: dialogueOptions.repeatPenalty
