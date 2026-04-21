@@ -5,11 +5,31 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="66680b18-c45c-45ac-844d-dac18d71ab5c" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/Assets/Characters/Mixamotestccrigged.fbx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Characters/Mixamotestccrigged.fbx.meta" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Characters/New Animator Controller.controller" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Characters/New Animator Controller.controller.meta" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/AnimatedCharacters.meta" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/AnimatedCharacters/AnimatedTestNPC.prefab" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/AnimatedCharacters/AnimatedTestNPC.prefab.meta" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLegState.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLegState.cs.meta" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.layered-animation-system/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/RinkFuckAroundScene.unity" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/API/NPC/Actions/NPCActionDispatcher.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/Packages/com.unity.probuilder/Settings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Characters/Eric/Animations/Neutral Idle.fbx.meta" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Characters/Eric/Animations/Neutral Idle.fbx.meta" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Characters/Eric/Animator/ERIK_Animator.controller" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Characters/Eric/Animator/ERIK_Animator.controller" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/AnimatedCharacters.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/AnimatedCharacters/AnimatedTestNPC.prefab" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/AnimatedCharacters/AnimatedTestNPC.prefab.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/AnimatedCharacters/Mixamotestccrigged.fbx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Prefabs/AnimatedCharacters/Mixamotestccrigged.fbx.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scenes/IKTesting/BaseIKTestScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scenes/IKTesting/BaseIKTestScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/Foot.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/Foot.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegBehaviour.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegBehaviour.cs.meta" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegTurning.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegTurning.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" beforeDir="false" afterPath="$PROJECT_DIR$/ProjectSettings/EditorBuildSettings.asset" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,9 +43,9 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/Foot.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IKLookAt.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegTurning.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/PlayerController.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Assets/Scripts/Utils/Vector3Extensions.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/Library/PackageCache/com.unity.render-pipelines.universal@a6e30d1f59f5/Shaders/Lit.shader" root0="SKIP_HIGHLIGHTING" />
   </component>
@@ -76,10 +96,10 @@
       <option name="MIXED_MODE_DEBUG" value="0" />
       <method v="2" />
     </configuration>
-    <configuration name="Attach to Unity Editor" type="UNITY_DEBUG_RUN_CONFIGURATION" factoryName="Unity Debug" show_console_on_std_err="false" show_console_on_std_out="false" port="50000" address="localhost" useMixedMode="false" ignored-value-for-modified-check="11560">
+    <configuration name="Attach to Unity Editor" type="UNITY_DEBUG_RUN_CONFIGURATION" factoryName="Unity Debug" show_console_on_std_err="false" show_console_on_std_out="false" port="50000" address="localhost" useMixedMode="false" ignored-value-for-modified-check="10356">
       <option name="allowRunningInParallel" value="false" />
       <option name="listenPortForConnections" value="false" />
-      <option name="pid" value="11560" />
+      <option name="pid" value="10356" />
       <option name="projectPathOnTarget" />
       <option name="runtimes">
         <list>
@@ -108,7 +128,12 @@
       <workItem from="1774605006758" duration="5267000" />
       <workItem from="1774945423048" duration="4491000" />
       <workItem from="1774951785852" duration="9538000" />
-      <workItem from="1775031153860" duration="11217000" />
+      <workItem from="1775031153860" duration="15351000" />
+      <workItem from="1775556708024" duration="710000" />
+      <workItem from="1775640483472" duration="4498000" />
+      <workItem from="1776416236663" duration="8656000" />
+      <workItem from="1776427595698" duration="1190000" />
+      <workItem from="1776672259213" duration="9231000" />
     </task>
     <servers />
   </component>
@@ -152,19 +177,6 @@
           <properties exception="System.Threading.ThreadAbortException" breakIfHandledByOtherCode="false" displayValue="System.Threading.ThreadAbortException" />
           <option name="timeStamp" value="3" />
         </breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/Assets/Scripts/InverseKinematics/IkLegTurning.cs</url>
-          <line>97</line>
-          <properties documentPath="C:\UnityProjects\layered-animation-system\Assets\Scripts\InverseKinematics\IkLegTurning.cs" containingFunctionPresentation="Method 'MoveFootCo'">
-            <startOffsets>
-              <option value="2550" />
-            </startOffsets>
-            <endOffsets>
-              <option value="2637" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="7" />
-        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>

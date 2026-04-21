@@ -17,29 +17,39 @@ namespace LAS
             
         }
     }
-    
+
     public class IkLegTurning : MonoBehaviour
     {
         [SerializeField] private float rotationSpeed;
         [SerializeField] private float maxStepSize;
-        
-        [Header("Left foot")] 
-        [SerializeField] private Transform leftPivot;
-        
-        [Header("Right foot")]
-        [SerializeField] private Transform rightPivot;
 
-        [Header("Body")] 
-        [SerializeField] private Transform body;
-        
+        [SerializeField] private AnimationCurve legMovementCurve;
+        [SerializeField] private AnimationCurve legVerticalMovementCurve;
+        [SerializeField] private float maxFootHeight;
+
+
+        [Header("Left foot")] [SerializeField] private Transform leftPivot;
+
+        [Header("Right foot")] [SerializeField]
+        private Transform rightPivot;
+
+        [Header("Body")] [SerializeField] private Transform body;
+        [SerializeField] private Transform bodyIKPivot;
+
         private FootIKData leftFoot;
         private FootIKData rightFoot;
 
         private FootIKData catchupFoot;
 
-        private Vector3 target;
+        private Vector3 targetRotation;
+        private Vector3 targetAngle;
 
+
+        private Vector3 startBodyRotation;
+        
         private bool catchingUp;
+
+        private float bodyRotationValue;
 
         private void Start()
         {
@@ -51,28 +61,36 @@ namespace LAS
         }
 
         public void RotateTowards(Vector3 targetRotation)
-        { 
-            Debug.Log(targetRotation.y + " starting foot rotation");
+        {
+            if (leftFoot.isGrounded && rightFoot.isGrounded)
+            {
+                this.targetRotation = targetRotation - Quaternion.LookRotation(body.forward).eulerAngles;
+                targetAngle = targetRotation;
+                
+                if(this.targetRotation.y > 180)
+                    this.targetRotation -= new Vector3(0, 360, 0);
+
+                Debug.Log("Starting leg movement towards " + this.targetRotation);
+                Debug.Log(targetAngle);
+
+                bodyRotationValue = 0;
+                
+                startBodyRotation = body.eulerAngles;
             
-            target = targetRotation;
-            catchingUp = false;
-            
-            if(target.y < 0)
-                StartCoroutine(MoveFootCo(leftFoot));
-            else
-                StartCoroutine(MoveFootCo(rightFoot));
+                if(this.targetRotation.y < 0)
+                    StartCoroutine(MoveFootCo(leftFoot));
+                else
+                    StartCoroutine(MoveFootCo(rightFoot));
+            }
         }
 
         private void MoveFoot(FootIKData foot)
         {
              if(foot.isGrounded)
                  foot.isGrounded = false;
-
-
-             if ((foot.pivot.eulerAngles - target).magnitude < rotationSpeed * Time.deltaTime)
+             
+             if ((foot.pivot.eulerAngles - targetRotation).magnitude < rotationSpeed * Time.deltaTime)
              {
-                 
-                 catchingUp = true;
                  catchupFoot = foot.otherFoot;
                  foot.isGrounded = true;
              }
@@ -97,33 +115,50 @@ namespace LAS
 
         private IEnumerator MoveFootCo(FootIKData foot)
         {
-            foot.pivot.position += Vector3.up * 0.05f;
+            float timeElapsed = 0;
+            Vector3 startRotation = foot.pivot.eulerAngles;
             
-            while (Mathf.Abs(foot.pivot.eulerAngles.y - target.y) > rotationSpeed * Time.deltaTime)
+            float footHeight = 0;
+
+            foot.isGrounded = false;
+            
+            while (Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y) > rotationSpeed * Time.deltaTime)
             {
-                Debug.Log(foot.pivot.eulerAngles.y + " rotation of " + foot.pivot.name);
+                //Debug.Log(Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y));
                 
-                Vector3 maxRotation = target.GetDirectionalNormalized() * (rotationSpeed * Time.deltaTime);
                 Vector3 rotation;
-            
-                if (target.magnitude < maxRotation.magnitude)
-                    rotation = target;
-                else 
-                    rotation = maxRotation;
                 
-                foot.pivot.eulerAngles += rotation / 3 * 2;
-                body.eulerAngles += rotation / 3;
+                rotation = targetRotation * legMovementCurve.Evaluate(timeElapsed) ;
+                
+                foot.pivot.eulerAngles = startRotation + rotation;
+
+                // +++++++ FIX TORSO ROTATION +++++++++++
+                
+                body.eulerAngles = startBodyRotation + targetRotation * legMovementCurve.Evaluate(bodyRotationValue);
+                bodyIKPivot.eulerAngles = startBodyRotation + targetRotation * legMovementCurve.Evaluate(bodyRotationValue);
+                
+                footHeight = legVerticalMovementCurve.Evaluate(timeElapsed) * maxFootHeight;
+                foot.pivot.localPosition = Vector3.up * footHeight;
+
+                float delta = Time.deltaTime * rotationSpeed;
+                timeElapsed += delta / 3 * 2;
+                bodyRotationValue += delta / 3;
                 
                 yield return null;
             }
 
-            foot.pivot.position -= Vector3.up * 0.05f;
+            foot.pivot.position = Vector3.zero;
+            
             
             if (!catchingUp)
             {
+                foot.isGrounded = true;
                 catchingUp = true;
                 StartCoroutine(MoveFootCo(foot.otherFoot));
             }
+            
+            catchingUp = false;
+            foot.isGrounded = true;
         }
     }
 }
