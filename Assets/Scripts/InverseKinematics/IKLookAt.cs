@@ -70,6 +70,11 @@ public class IKLookAt : MonoBehaviour
             targetRotation = maxRotation;
     }
 
+    public void ClearTarget()
+    {
+        //TODO: Implement this
+    }
+    
     private void RotateHead(Vector3 targetAngle)
     {
         Vector3 angle = targetAngle * 0.7f;
