@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7c562d68c9dad9140920f360e7377a4d, type: 3}
   m_Name: OpenAIChatProvider
   m_EditorClassIdentifier: Assembly-CSharp::LAS.OpenAIChatProvider
-  modelName: gpt-4o
+  modelName: gpt-4o-mini
   preset: 0
   customBaseUrl: 
   apiKeyName: OPENAI_API_KEY

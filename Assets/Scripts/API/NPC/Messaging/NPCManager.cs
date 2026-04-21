@@ -55,12 +55,9 @@ namespace LAS {
         };
 
         [Header("Streaming Settings")]
-        [Tooltip("Reveal NPC dialogue word-by-word in the UI rather than all at once.")]
-        [SerializeField] private bool enableSimulatedStreaming = true;
-        [Tooltip("How many characters per second appear when streaming dialogue. Higher = faster reveal.")]
-        [SerializeField] [Range(10f, 200f)] private float charactersPerSecond = 50f;
-        [Tooltip("Speed up or slow down the streaming reveal based on how long the LLM took to respond.")]
-        [SerializeField] private bool adaptiveStreaming = true;
+        [Tooltip("All streaming settings: output (enable/speed), adaptive speed, and per-character pacing. " +
+                 "Each sub-section is collapsible in the inspector.")]
+        [SerializeField] private StreamingSettings streaming = new StreamingSettings();
 
         [Header("Context Management")]
         [Tooltip("How many past messages are included in each LLM request. Higher = more context, higher cost.")]
@@ -84,9 +81,28 @@ namespace LAS {
             = new SerializedDictionary<string, NPCController>();
 
         [Header("Alias Generation")]
-        [Tooltip("Automatically generate LLM-based aliases for InteractableItem and LocationTarget objects on startup. " +
+        [Tooltip("Automatically generate LLM-based aliases for scene targets on startup. " +
                  "Aliases allow players to refer to targets by informal names or misspellings.")]
         [SerializeField] private bool generateAliasesOnStartup = true;
+        [Tooltip("Parameters and prompt template for the alias generator. Right-click this component and choose " +
+                 "'Reset Alias Generator to Default' to restore built-in values.")]
+        [SerializeField] private AliasGeneratorConfig aliasConfig = new AliasGeneratorConfig();
+
+        [Header("Conversation Prompts")]
+        [Tooltip("Fallback prompts for NPC-to-NPC auto-conversation and player idle re-engagement. " +
+                 "Each prompt is read from the scenario JSON first; the inspector values act as fallbacks " +
+                 "or overrides depending on the toggle inside.")]
+        [SerializeField] private ConversationPromptsSettings conversationPrompts = new ConversationPromptsSettings();
+
+        [Header("Rules and Guidelines")]
+        [Tooltip("Critical conversation-flow rules and domain-specific behavior guidelines injected into every LLM prompt. " +
+                 "Both blocks are read from the scenario JSON first; the inspector values act as fallbacks or overrides.")]
+        [SerializeField] private RulesAndGuidelinesSettings rulesAndGuidelines = new RulesAndGuidelinesSettings();
+
+        [Header("Interrupt Settings")]
+        [Tooltip("Maximum seconds to wait for an in-progress generation to stop before sending the player's queued message. " +
+                 "If this elapses before the generation stops, the queued message is sent anyway.")]
+        [SerializeField] private float interruptWaitTimeout = 2f;
 
         [Header("Debug")]
         [Tooltip("Log verbose internal state (NPC assignments, initialization steps) to the console.")]
@@ -155,6 +171,11 @@ namespace LAS {
             if (playerInputField != null)
             {
                 playerInputField.onSubmit.AddListener(delegate { OnPlayerSendMessage(); });
+
+                // Ensure the text caret is visible and blinking when the field is focused.
+                // TMP_InputField defaults can vary by prefab; set explicit values here as a guarantee.
+                playerInputField.caretWidth     = 2;
+                playerInputField.caretBlinkRate = 0.85f;
             }
         
             StartCoroutine(InitializeSystem());
@@ -292,9 +313,11 @@ namespace LAS {
             // ── Alias generation (background — non-blocking) ──────────────────────
             if (generateAliasesOnStartup)
             {
-                string title = scenarioConfig?.scenario?.title ?? "";
+                string contextHint = scenarioConfig?.scenario?.context_hint
+                    ?? scenarioConfig?.scenario?.title
+                    ?? "";
                 StartCoroutine(AliasGenerator.GenerateAll(
-                    NPCActionTargetRegistry.Instance, llmProvider, title, this));
+                    NPCActionTargetRegistry.Instance, llmProvider, aliasConfig, contextHint, this));
             }
 
             // Add initial scenario messages
@@ -337,11 +360,10 @@ namespace LAS {
         {
             if (scenarioConfig.conversation_initialization == null)
                 yield break;
-            
-            yield return GetNPCResponse(
+
+            yield return GetNPCResponse(ConversationTurn.FromSystem(
                 scenarioConfig.conversation_initialization.opening_prompt,
-                scenarioConfig.conversation_initialization.first_speaker_index
-            );
+                scenarioConfig.conversation_initialization.first_speaker_index));
         }
 
         /// <summary>
@@ -363,6 +385,9 @@ namespace LAS {
             string message = playerInputField.text.Trim();
             playerInputField.text = "";
 
+            // Keep the input field focused so the player can immediately type their next message.
+            playerInputField.ActivateInputField();
+
             // ── Command intercept ──────────────────────────────────────────────────
             if (message.StartsWith("/"))
             {
@@ -370,17 +395,21 @@ namespace LAS {
                 return;
             }
 
+            // Address detection happens here so the turn carries the result.
+            int addressedNPC = DetectAddressedNPC(message);
+            var turn = ConversationTurn.FromPlayer(message, addressedNPC);
+
             if (isProcessing)
             {
                 // Interrupt any in-progress generation and queue the player message.
                 InterruptCurrentGeneration();
-                StartCoroutine(SendPlayerMessageAfterInterrupt(message));
+                StartCoroutine(SendPlayerMessageAfterInterrupt(turn));
             }
             else
             {
                 AddChatMessage("Player", message, MessageType.Player);
                 NPCEventBus.BroadcastPlayerMessage(message);
-                StartCoroutine(GetNPCResponse(message, -1));
+                StartCoroutine(GetNPCResponse(turn));
             }
         }
 
@@ -408,8 +437,26 @@ namespace LAS {
                 : -1;
             if (nextSpeaker >= 0) _lastAutoSpeakerIndex = nextSpeaker;
 
-            string prompt = "Continue the teaching session naturally. Address the next aspect of preparation, ask a follow-up question, or respond to what was just said.";
-            yield return GetNPCResponse(prompt, nextSpeaker);
+            // Find the last NPC who spoke and their dialogue so we can build a true
+            // NPC-to-NPC turn rather than a generic director prompt.
+            int    lastNPCSpeakerIndex = -1;
+            string lastNPCDialogue     = "";
+            for (int i = conversationHistory.Count - 1; i >= 0; i--)
+            {
+                if (conversationHistory[i].type == MessageType.NPC)
+                {
+                    string speakerName = conversationHistory[i].speaker;
+                    lastNPCSpeakerIndex = registeredNPCs.FindIndex(n => n.npcName == speakerName);
+                    lastNPCDialogue     = conversationHistory[i].message;
+                    break;
+                }
+            }
+
+            ConversationTurn turn = (lastNPCSpeakerIndex >= 0 && !string.IsNullOrEmpty(lastNPCDialogue))
+                ? ConversationTurn.FromNPC(lastNPCSpeakerIndex, lastNPCDialogue, nextSpeaker)
+                : ConversationTurn.FromSystem(GetEffectiveNPCConversationPrompt(), nextSpeaker);
+
+            yield return GetNPCResponse(turn);
         }
 
         private IEnumerator NPCPromptPlayerRoutine()
@@ -420,11 +467,10 @@ namespace LAS {
                 : -1;
             if (nextSpeaker >= 0) _lastAutoSpeakerIndex = nextSpeaker;
 
-            string prompt = "The student has been quiet for a while. One of you should check in with them, ask if they have questions, or prompt them to participate.";
-            yield return GetNPCResponse(prompt, nextSpeaker);
+            yield return GetNPCResponse(ConversationTurn.FromRoom(GetEffectiveIdlePrompt(), nextSpeaker));
         }
 
-        private IEnumerator GetNPCResponse(string userInput, int specificNPCIndex)
+        private IEnumerator GetNPCResponse(ConversationTurn turn)
         {
             if (llmProvider == null || !llmProvider.IsConnected)
             {
@@ -436,14 +482,9 @@ namespace LAS {
             _interruptGenerationFlag = false;
             float generationStartTime = Time.time;
 
-            // Auto-detect which NPC the player is directly addressing (e.g. "Dr. Chen, can you...")
-            // This must happen before BuildDialoguePrompt so the prompt locks in the correct speaker.
-            if (specificNPCIndex < 0)
-                specificNPCIndex = DetectAddressedNPC(userInput);
-
             // ── STEP 1: Dialogue Generation (full context, temperature 0.7) ──────────
 
-            string step1Prompt = BuildDialoguePrompt(userInput, specificNPCIndex);
+            string step1Prompt = BuildDialoguePrompt(turn);
 
             if (logPrompts)
                 Debug.Log($"[NPCManager] === LLM REQUEST (Dialogue) ===\n{step1Prompt}");
@@ -468,14 +509,14 @@ namespace LAS {
                 yield break;
             }
 
-            // Resolve which NPC spoke (respect specificNPCIndex if supplied).
-            int npcIndex = (specificNPCIndex >= 0 && specificNPCIndex < registeredNPCs.Count)
-                ? specificNPCIndex
+            // Resolve which NPC spoke (respect turn.targetIndex if supplied).
+            int npcIndex = (turn.targetIndex >= 0 && turn.targetIndex < registeredNPCs.Count)
+                ? turn.targetIndex
                 : step1Response.npc_index;
 
             // ── STEP 2: Action Classification (short prompt, temperature 0.1) ────────
 
-            string step2Prompt = BuildActionClassificationPrompt(npcIndex, userInput, step1Response.dialogue, step1Response.internal_thought);
+            string step2Prompt = BuildActionClassificationPrompt(npcIndex, turn, step1Response.dialogue, step1Response.internal_thought);
 
             if (logPrompts)
                 Debug.Log($"[NPCManager] === LLM REQUEST (Action) ===\n{step2Prompt}");
@@ -511,10 +552,10 @@ namespace LAS {
 
             string actionSummary = actionSequence?.actions?.Length > 0
                 ? string.Join(" → ", actionSequence.actions
-                    .Where(a => a.action_key != "NONE")
+                    .Where(a => a.action_key != NPCActionDefinition.NoneKey)
                     .Select(a => string.IsNullOrEmpty(a.action_target)
                         ? a.action_key : $"{a.action_key}({a.action_target})"))
-                : "NONE";
+                : NPCActionDefinition.NoneKey;
 
             NPCResponse finalResponse = new NPCResponse
             {
@@ -531,8 +572,8 @@ namespace LAS {
             {
                 string speakerName = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
                     ? registeredNPCs[npcIndex].npcName : $"NPC {npcIndex}";
-                string actionPart = string.IsNullOrEmpty(actionSummary) || actionSummary == "NONE"
-                    ? "NONE"
+                string actionPart = string.IsNullOrEmpty(actionSummary) || actionSummary == NPCActionDefinition.NoneKey
+                    ? NPCActionDefinition.NoneKey
                     : actionSummary;
                 Debug.Log($"[NPC] {speakerName} → {actionPart} | \"{finalResponse.dialogue}\"");
             }
@@ -582,7 +623,7 @@ namespace LAS {
                     // Record for action classification context in future turns
                     string npcLabel = currentSpeaker?.npcName ?? $"NPC {npcIndex}";
                     string steps = string.Join(" → ", actionSequence.actions
-                        .Where(a => !string.IsNullOrEmpty(a.action_key) && a.action_key != "NONE")
+                        .Where(a => !string.IsNullOrEmpty(a.action_key) && a.action_key != NPCActionDefinition.NoneKey)
                         .Select(a => string.IsNullOrEmpty(a.action_target) ? a.action_key : $"{a.action_key}({a.action_target})"));
                     if (!string.IsNullOrEmpty(steps))
                     {
@@ -596,19 +637,26 @@ namespace LAS {
             // Stream dialogue text to the chat message.
             if (tempMessage != null && !string.IsNullOrEmpty(finalResponse.dialogue))
             {
-                if (enableSimulatedStreaming)
+                if (streaming.output.enableSimulatedStreaming)
                 {
-                    float streamSpeed = charactersPerSecond;
-                    if (adaptiveStreaming)
+                    float streamSpeed = streaming.output.charactersPerSecond;
+                    if (streaming.output.adaptiveStreaming)
                     {
-                        if (generationTime > 2f)
-                            streamSpeed *= Mathf.Min(2f, generationTime / 2f);
-                        else if (generationTime < 0.5f)
-                            streamSpeed *= 0.7f;
+                        if (generationTime > streaming.adaptiveSpeed.slowThreshold)
+                            streamSpeed *= Mathf.Min(streaming.adaptiveSpeed.maxMultiplier,
+                                                     generationTime / streaming.adaptiveSpeed.slowThreshold);
+                        else if (generationTime < streaming.adaptiveSpeed.fastThreshold)
+                            streamSpeed *= streaming.adaptiveSpeed.fastSpeedMultiplier;
                     }
                     _streamingTextCoroutine = StartCoroutine(StreamTextToMessage(tempMessage, finalResponse.dialogue, streamSpeed));
                     yield return _streamingTextCoroutine;
                     _streamingTextCoroutine = null;
+
+                    // If InterruptCurrentGeneration() was called during streaming it already
+                    // broadcast NPCFinishedSpeaking and reset state — bail out here to avoid
+                    // a second broadcast that would leak an orphaned auto-conversation coroutine.
+                    if (_interruptGenerationFlag)
+                        yield break;
                 }
                 else
                 {
@@ -645,17 +693,11 @@ namespace LAS {
                 float delay = charDelay;
             
                 if (currentChar == '.' || currentChar == '!' || currentChar == '?')
-                {
-                    delay *= 3f; // Longer pause after sentence endings
-                }
+                    delay *= streaming.pacing.pauseAfterSentenceEnd;
                 else if (currentChar == ',' || currentChar == ';' || currentChar == ':')
-                {
-                    delay *= 2f; // Medium pause after commas
-                }
+                    delay *= streaming.pacing.pauseAfterComma;
                 else if (currentChar == ' ')
-                {
-                    delay *= 0.5f; // Shorter pause for spaces
-                }
+                    delay *= streaming.pacing.pauseAfterSpace;
             
                 yield return new WaitForSeconds(delay);
             }
@@ -689,20 +731,22 @@ namespace LAS {
         }
 
         /// <summary>
-        /// Waits for an interrupted generation to fully stop, then sends the player's message.
+        /// Waits for an interrupted generation to fully stop, then sends the player's queued turn.
+        /// Respects <see cref="interruptWaitTimeout"/> — if the generation hasn't stopped within
+        /// that window the message is sent anyway.
         /// </summary>
-        private IEnumerator SendPlayerMessageAfterInterrupt(string message)
+        private IEnumerator SendPlayerMessageAfterInterrupt(ConversationTurn turn)
         {
             float elapsed = 0f;
-            while (isProcessing && elapsed < 2f)
+            while (isProcessing && elapsed < interruptWaitTimeout)
             {
                 elapsed += Time.deltaTime;
                 yield return null;
             }
 
-            AddChatMessage("Player", message, MessageType.Player);
-            NPCEventBus.BroadcastPlayerMessage(message);
-            StartCoroutine(GetNPCResponse(message, -1));
+            AddChatMessage("Player", turn.content, MessageType.Player);
+            NPCEventBus.BroadcastPlayerMessage(turn.content);
+            StartCoroutine(GetNPCResponse(turn));
         }
 
         /// <summary>
@@ -798,11 +842,13 @@ namespace LAS {
 
                 if (candidates.Count == 0) return false;
 
-                // Strip meta-description prefixes that the LLM wraps around dialogue.
+                // Strip meta-description prefixes that the LLM sometimes wraps around dialogue.
                 // e.g. "description of Dr. Chen's dialogue: I'll grab that now" → "I'll grab that now"
-                string[] metaPrefixes = { "description of ", "as she responds", "as he responds",
-                                           "npc response:", "character says:", "response:", "reply:",
-                                           "as she says", "as he says", "dr.", "nurse", "michael" };
+                // The prefix list is built dynamically from current NPC names/roles so it stays
+                // correct across scenarios without any hardcoded character names.
+                var metaPrefixSet = BuildFallbackMetaPrefixes();
+                string[] metaPrefixes = new string[metaPrefixSet.Count];
+                metaPrefixSet.CopyTo(metaPrefixes, 0);
 
                 var cleaned = candidates.Select(c =>
                 {
@@ -838,15 +884,18 @@ namespace LAS {
         }
 
         /// <summary>
-        /// Builds the Step 1 dialogue prompt — full context with conversation history.
-        /// Response format asks only for npc_index, dialogue, and internal_thought (no action fields).
+        /// Builds the Step 1 dialogue prompt from a <see cref="ConversationTurn"/>.
+        /// Frames the "current input" section differently depending on whether the stimulus
+        /// came from the player, another NPC, a system directive, or a scene event — ensuring
+        /// the LLM generates dialogue appropriate to the actual conversation mode.
         /// </summary>
-        private string BuildDialoguePrompt(string currentInput, int specificNPCIndex)
+        private string BuildDialoguePrompt(ConversationTurn turn)
         {
-            StringBuilder prompt = new StringBuilder();
+            var prompt = new StringBuilder();
 
             if (scenarioConfig != null)
             {
+                // ── Scenario context ──────────────────────────────────────────────
                 prompt.AppendLine("=== SCENARIO CONTEXT ===");
                 prompt.AppendLine($"Setting: {scenarioConfig.scenario.setting}");
                 prompt.AppendLine($"Timeframe: {scenarioConfig.scenario.timeframe}");
@@ -854,6 +903,7 @@ namespace LAS {
                     prompt.AppendLine($"Context: {scenarioConfig.conversation_initialization.context}");
                 prompt.AppendLine();
 
+                // ── Player character ──────────────────────────────────────────────
                 if (scenarioConfig.player_character != null)
                 {
                     prompt.AppendLine("=== PLAYER CHARACTER ===");
@@ -862,11 +912,16 @@ namespace LAS {
                     prompt.AppendLine();
                 }
 
-                prompt.AppendLine("=== CORE RULES (FOLLOW STRICTLY) ===");
-                foreach (var rule in scenarioConfig.system_instructions.core_rules)
-                    prompt.AppendLine($"• {rule}");
-                prompt.AppendLine();
+                // ── Core rules (from JSON) ────────────────────────────────────────
+                if (scenarioConfig.system_instructions?.core_rules?.Length > 0)
+                {
+                    prompt.AppendLine("=== CORE RULES (FOLLOW STRICTLY) ===");
+                    foreach (var rule in scenarioConfig.system_instructions.core_rules)
+                        prompt.AppendLine($"• {rule}");
+                    prompt.AppendLine();
+                }
 
+                // ── Characters ────────────────────────────────────────────────────
                 prompt.AppendLine("=== CHARACTERS (BY INDEX) ===");
                 for (int i = 0; i < scenarioConfig.characters.Length && i < registeredNPCs.Count; i++)
                 {
@@ -875,52 +930,64 @@ namespace LAS {
                     prompt.AppendLine($"  Personality: {ch.personality}");
                     prompt.AppendLine($"  Background: {ch.background}");
                     prompt.AppendLine($"  Communication: {ch.communication_style}");
-                    prompt.AppendLine($"  Teaching: {ch.teaching_approach}");
+                    if (!string.IsNullOrEmpty(ch.teaching_approach))
+                        prompt.AppendLine($"  Approach: {ch.teaching_approach}");
                     prompt.AppendLine($"  Current: {ch.current_state}");
                 }
                 prompt.AppendLine();
 
+                // ── Progression steps (optional) ──────────────────────────────────
                 if (includeProgressionContext && scenarioConfig.required_progression_steps != null)
                 {
                     prompt.AppendLine("=== REQUIRED PROGRESSION STEPS ===");
-                    prompt.AppendLine("Guide the student through these steps in order:");
                     for (int i = 0; i < scenarioConfig.required_progression_steps.Length; i++)
                     {
-                        var step = scenarioConfig.required_progression_steps[i];
-                        string status = i < currentProgressionStep ? "[COMPLETED]" :
-                                       i == currentProgressionStep ? "[CURRENT]" : "[UPCOMING]";
+                        var step   = scenarioConfig.required_progression_steps[i];
+                        string status = i < currentProgressionStep  ? "[COMPLETED]" :
+                                        i == currentProgressionStep ? "[CURRENT]"   : "[UPCOMING]";
                         prompt.AppendLine($"{status} Step {step.step_id}: {step.title}");
                         if (i == currentProgressionStep)
                         {
                             prompt.AppendLine($"  Description: {step.description}");
-                            prompt.AppendLine($"  Teaching moments: {string.Join(", ", step.teaching_moments)}");
+                            if (step.key_points?.Length > 0)
+                                prompt.AppendLine($"  Key points: {string.Join(", ", step.key_points)}");
+                            if (step.teaching_moments?.Length > 0)
+                                prompt.AppendLine($"  Teaching moments: {string.Join(", ", step.teaching_moments)}");
                         }
                     }
                     prompt.AppendLine();
                 }
 
-                prompt.AppendLine("=== CRITICAL RULES ===");
-                prompt.AppendLine("• If YOU just asked a question, WAIT for someone else to answer");
-                prompt.AppendLine("• NEVER answer your own questions");
-                prompt.AppendLine("• NEVER have multiple exchanges by yourself");
-                prompt.AppendLine("• If the player uses a vague term that could refer to a known item (e.g. 'that thing', 'the sharp one'), ask for clarification using the actual item name.");
-                prompt.AppendLine("• If the player asks about something completely unrecognizable or unrelated to this scenario, clearly state that you don't know what they mean and redirect to the current training task.");
-                prompt.AppendLine();
-
-                prompt.AppendLine("=== INTERACTION GUIDELINES ===");
-                foreach (var g in scenarioConfig.system_instructions.interaction_guidelines)
-                    prompt.AppendLine($"• {g}");
-                prompt.AppendLine();
-
-                if (scenarioConfig.system_instructions.teaching_behavior != null)
+                // ── Critical rules (JSON → inspector fallback) ────────────────────
+                var criticalRules = GetEffectiveCriticalRules();
+                if (!string.IsNullOrWhiteSpace(criticalRules))
                 {
-                    prompt.AppendLine("=== TEACHING BEHAVIOR ===");
-                    foreach (var b in scenarioConfig.system_instructions.teaching_behavior)
-                        prompt.AppendLine($"• {b}");
+                    prompt.AppendLine("=== CRITICAL RULES ===");
+                    prompt.AppendLine(criticalRules.TrimEnd());
+                    prompt.AppendLine();
+                }
+
+                // ── Interaction guidelines (from JSON) ────────────────────────────
+                if (scenarioConfig.system_instructions?.interaction_guidelines?.Length > 0)
+                {
+                    prompt.AppendLine("=== INTERACTION GUIDELINES ===");
+                    foreach (var g in scenarioConfig.system_instructions.interaction_guidelines)
+                        prompt.AppendLine($"• {g}");
+                    prompt.AppendLine();
+                }
+
+                // ── Behavior guidelines (JSON → inspector fallback, configurable label) ─
+                var behaviorGuidelines = GetEffectiveBehaviorGuidelines();
+                if (!string.IsNullOrWhiteSpace(behaviorGuidelines))
+                {
+                    string sectionLabel = GetEffectiveBehaviorSectionLabel();
+                    prompt.AppendLine($"=== {sectionLabel} ===");
+                    prompt.AppendLine(behaviorGuidelines.TrimEnd());
                     prompt.AppendLine();
                 }
             }
 
+            // ── Recent conversation history ───────────────────────────────────────
             if (conversationHistory.Count > 0)
             {
                 prompt.AppendLine("=== RECENT CONVERSATION ===");
@@ -930,29 +997,22 @@ namespace LAS {
                 prompt.AppendLine();
             }
 
+            // ── Current input (framed by turn type) ──────────────────────────────
             prompt.AppendLine("=== CURRENT INPUT ===");
-            prompt.AppendLine(currentInput);
-            prompt.AppendLine();
+            prompt.AppendLine(BuildCurrentInputSection(turn));
 
-            if (specificNPCIndex >= 0 && specificNPCIndex < registeredNPCs.Count)
-            {
-                prompt.AppendLine($"=== YOU ARE NPC {specificNPCIndex} ===");
-                prompt.AppendLine($"Respond as {registeredNPCs[specificNPCIndex].npcName}");
-            }
-            else
-            {
-                prompt.AppendLine("=== DETERMINE WHO SHOULD RESPOND ===");
-                prompt.AppendLine("Based on context and who was addressed, decide which NPC responds.");
-            }
+            // ── Speaker assignment ────────────────────────────────────────────────
+            AppendSpeakerSection(prompt, turn);
 
+            // ── Response format ───────────────────────────────────────────────────
             prompt.AppendLine();
             prompt.AppendLine("=== RESPONSE FORMAT ===");
             prompt.AppendLine("Output ONLY a JSON object — no descriptions, no prose, no text before or after the braces.");
             prompt.AppendLine("Do NOT write 'description of', 'as she says', or any wrapper text. Just the JSON.");
             prompt.AppendLine("You MUST use EXACTLY these three field names:");
-            prompt.AppendLine("  \"npc_index\"       : integer — who speaks (0 or 1)");
+            prompt.AppendLine("  \"npc_index\"       : integer — who speaks");
             prompt.AppendLine("  \"dialogue\"        : string  — the EXACT words spoken aloud");
-            prompt.AppendLine("  \"internal_thought\": string  — the physical action you intend to take, if any (e.g. \"picking up the scalpel\", \"walking to the supply table\", \"handing the item to the player\"). Write \"none\" if no physical action is needed.");
+            prompt.AppendLine("  \"internal_thought\": string  — intended physical action, e.g. \"picking up the scalpel\". Write \"none\" if no physical action.");
             prompt.AppendLine("Do NOT add action_key or action_target — those are handled separately.");
             prompt.AppendLine("Correct output:");
             prompt.AppendLine("{\"npc_index\": 1, \"dialogue\": \"Let me grab that for you.\", \"internal_thought\": \"picking up the scalpel and handing it to the player\"}");
@@ -964,6 +1024,68 @@ namespace LAS {
 
             return prompt.ToString();
         }
+
+        /// <summary>
+        /// Builds the text that follows the <c>=== CURRENT INPUT ===</c> marker, framed
+        /// correctly for the turn's speaker type. This section becomes the "user" message
+        /// in providers that split system/user roles at the marker.
+        /// </summary>
+        private string BuildCurrentInputSection(ConversationTurn turn)
+        {
+            var sb = new StringBuilder();
+            switch (turn.speakerType)
+            {
+                case SpeakerType.Player:
+                    sb.AppendLine(turn.content);
+                    break;
+
+                case SpeakerType.NPC:
+                    string speakerName = IsValidNPCIndex(turn.speakerIndex)
+                        ? registeredNPCs[turn.speakerIndex].npcName
+                        : $"NPC {turn.speakerIndex}";
+                    string targetName = IsValidNPCIndex(turn.targetIndex)
+                        ? registeredNPCs[turn.targetIndex].npcName
+                        : "";
+                    sb.AppendLine($"{speakerName} just said: \"{turn.content}\"");
+                    if (!string.IsNullOrEmpty(targetName))
+                        sb.AppendLine($"You are {targetName}. Respond directly to {speakerName} by name — do not address the player in this turn.");
+                    break;
+
+                case SpeakerType.System:
+                    sb.AppendLine($"[Stage direction — not spoken aloud]: {turn.content}");
+                    break;
+
+                case SpeakerType.Room:
+                    sb.AppendLine($"[Scene situation]: {turn.content}");
+                    if (IsValidNPCIndex(turn.targetIndex))
+                        sb.AppendLine($"You are {registeredNPCs[turn.targetIndex].npcName}. React naturally to this situation.");
+                    else
+                        sb.AppendLine("One of you should react naturally to this situation.");
+                    break;
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Appends the speaker-assignment block to the prompt.
+        /// Uses the turn's targetIndex to lock a specific NPC, or asks the model to choose.
+        /// </summary>
+        private void AppendSpeakerSection(StringBuilder prompt, ConversationTurn turn)
+        {
+            if (IsValidNPCIndex(turn.targetIndex))
+            {
+                prompt.AppendLine($"=== YOU ARE NPC {turn.targetIndex} ===");
+                prompt.AppendLine($"Respond as {registeredNPCs[turn.targetIndex].npcName}");
+            }
+            else
+            {
+                prompt.AppendLine("=== DETERMINE WHO SHOULD RESPOND ===");
+                prompt.AppendLine("Based on context and who was addressed, decide which NPC responds.");
+            }
+        }
+
+        /// <summary>Returns true if <paramref name="index"/> is a valid index into registeredNPCs.</summary>
+        private bool IsValidNPCIndex(int index) => index >= 0 && index < registeredNPCs.Count;
 
         /// <summary>
         /// Builds a compact scene-state snapshot for the Step 2 prompt.
@@ -1024,16 +1146,24 @@ namespace LAS {
         /// <summary>
         /// Builds the Step 2 action classification prompt — short, focused, low-temperature.
         /// Only includes the triggering exchange and available actions (no full conversation history).
+        /// The trigger line is labelled correctly based on the turn's speaker type.
         /// </summary>
-        private string BuildActionClassificationPrompt(int npcIndex, string playerInput, string npcDialogue, string npcActionIntent = null)
+        private string BuildActionClassificationPrompt(int npcIndex, ConversationTurn turn, string npcDialogue, string npcActionIntent = null)
         {
-            StringBuilder prompt = new StringBuilder();
+            var prompt = new StringBuilder();
 
-            string npcName = (npcIndex >= 0 && npcIndex < registeredNPCs.Count)
+            string npcName = IsValidNPCIndex(npcIndex)
                 ? registeredNPCs[npcIndex].npcName : $"NPC {npcIndex}";
 
-            // ── Context (kept minimal — only what's needed for action selection) ─────
-            prompt.AppendLine($"PLAYER: \"{playerInput}\"");
+            // ── Trigger line — labelled by speaker type ───────────────────────────
+            string triggerLabel = turn.speakerType switch
+            {
+                SpeakerType.Player => "PLAYER",
+                SpeakerType.NPC when IsValidNPCIndex(turn.speakerIndex)
+                    => registeredNPCs[turn.speakerIndex].npcName,
+                _ => "CONTEXT"
+            };
+            prompt.AppendLine($"{triggerLabel}: \"{turn.content}\"");
             prompt.AppendLine($"{npcName}: \"{npcDialogue}\"");
 
             // Action intent from Step 1 — the primary signal for action classification.
@@ -1231,6 +1361,244 @@ namespace LAS {
             {
                 scrollRect.verticalNormalizedPosition = 0f;
             }
+        }
+
+        // ── Effective-value helpers (JSON → inspector fallback → hard default) ───────
+
+        /// <summary>
+        /// Returns the NPC-to-NPC auto-conversation prompt.
+        /// Priority: JSON field → inspector fallback (or inspector override if the flag is set).
+        /// </summary>
+        private string GetEffectiveNPCConversationPrompt()
+        {
+            if (!conversationPrompts.overrideNPCConversationPrompt)
+            {
+                string fromJson = scenarioConfig?.conversation_initialization?.npc_conversation_prompt;
+                if (!string.IsNullOrWhiteSpace(fromJson)) return fromJson;
+            }
+            return conversationPrompts.npcConversationPrompt;
+        }
+
+        /// <summary>
+        /// Returns the idle-player re-engagement prompt.
+        /// Priority: JSON field → inspector fallback (or inspector override if the flag is set).
+        /// </summary>
+        private string GetEffectiveIdlePrompt()
+        {
+            if (!conversationPrompts.overrideIdlePrompt)
+            {
+                string fromJson = scenarioConfig?.conversation_initialization?.idle_player_prompt;
+                if (!string.IsNullOrWhiteSpace(fromJson)) return fromJson;
+            }
+            return conversationPrompts.idlePrompt;
+        }
+
+        /// <summary>
+        /// Returns the critical rules block as a ready-to-append string (each rule prefixed with "• ").
+        /// Priority: JSON array → inspector fallback (or inspector override if the flag is set).
+        /// </summary>
+        private string GetEffectiveCriticalRules()
+        {
+            if (!rulesAndGuidelines.overrideCriticalRules)
+            {
+                var fromJson = scenarioConfig?.system_instructions?.critical_rules;
+                if (fromJson != null && fromJson.Length > 0)
+                    return string.Join("\n", System.Array.ConvertAll(fromJson, r => $"• {r}"));
+            }
+            return rulesAndGuidelines.criticalRules;
+        }
+
+        /// <summary>
+        /// Returns the behavior guidelines block as a ready-to-append string (each item prefixed with "• ").
+        /// Checks "behavior_guidelines" first, then "teaching_behavior" (legacy JSON alias).
+        /// Priority: JSON array → inspector fallback (or inspector override if the flag is set).
+        /// </summary>
+        private string GetEffectiveBehaviorGuidelines()
+        {
+            if (!rulesAndGuidelines.overrideBehaviorGuidelines)
+            {
+                var fromJson = scenarioConfig?.system_instructions?.behavior_guidelines;
+                if (fromJson == null || fromJson.Length == 0)
+                    fromJson = scenarioConfig?.system_instructions?.teaching_behavior; // legacy alias
+                if (fromJson != null && fromJson.Length > 0)
+                    return string.Join("\n", System.Array.ConvertAll(fromJson, b => $"• {b}"));
+            }
+            return rulesAndGuidelines.behaviorGuidelines;
+        }
+
+        /// <summary>
+        /// Returns the behavior guidelines section header label.
+        /// Priority: inspector override field (if non-empty) → JSON field → "BEHAVIOR GUIDELINES".
+        /// </summary>
+        private string GetEffectiveBehaviorSectionLabel()
+        {
+            if (!string.IsNullOrWhiteSpace(rulesAndGuidelines.behaviorSectionLabelOverride))
+                return rulesAndGuidelines.behaviorSectionLabelOverride.ToUpper();
+            string fromJson = scenarioConfig?.system_instructions?.behavior_section_label;
+            return string.IsNullOrWhiteSpace(fromJson) ? "BEHAVIOR GUIDELINES" : fromJson.ToUpper();
+        }
+
+        /// <summary>
+        /// Builds the set of meta-prefixes used by the fallback dialogue parser to strip
+        /// LLM-added wrapper text. Generic linguistic patterns are always included; NPC names
+        /// and roles are derived from the currently loaded scenario so no character names
+        /// are ever hardcoded.
+        /// </summary>
+        private HashSet<string> BuildFallbackMetaPrefixes()
+        {
+            var prefixes = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+            {
+                "description of",
+                "npc response:",
+                "character says:",
+                "response:",
+                "reply:",
+                "as she responds",
+                "as he responds",
+                "as she says",
+                "as he says",
+                "as they say"
+            };
+
+            // Add names and roles from registered NPCs (populated after scenario load).
+            foreach (var npc in registeredNPCs)
+            {
+                if (!string.IsNullOrWhiteSpace(npc.npcName))
+                    prefixes.Add(npc.npcName.ToLower());
+                if (!string.IsNullOrWhiteSpace(npc.characterRole))
+                    prefixes.Add(npc.characterRole.ToLower());
+            }
+
+            // Supplement with raw scenario character data in case registration hasn't happened yet.
+            if (scenarioConfig?.characters != null)
+            {
+                foreach (var ch in scenarioConfig.characters)
+                {
+                    if (!string.IsNullOrWhiteSpace(ch.name))  prefixes.Add(ch.name.ToLower());
+                    if (!string.IsNullOrWhiteSpace(ch.role))  prefixes.Add(ch.role.ToLower());
+                }
+            }
+
+            return prefixes;
+        }
+
+        // ── Context-menu editor actions ───────────────────────────────────────────
+        // All of these appear when right-clicking the NPCManager component in the inspector.
+
+        /// <summary>
+        /// Resets the alias generator prompt template to the built-in default.
+        /// Does not touch the LLM generation parameters.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Alias Prompt Template to Default")]
+        private void ResetAliasPromptTemplateToDefault()
+        {
+            if (aliasConfig == null) aliasConfig = new AliasGeneratorConfig();
+            aliasConfig.promptTemplate = AliasGeneratorConfig.DefaultPromptTemplate;
+            Debug.Log("[NPCManager] Alias prompt template reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the alias generator LLM parameters to built-in defaults.
+        /// Does not touch the prompt template.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Alias Generator Parameters to Default")]
+        private void ResetAliasGeneratorParametersToDefault()
+        {
+            if (aliasConfig == null) aliasConfig = new AliasGeneratorConfig();
+            aliasConfig.options.temperature   = AliasGeneratorConfig.DefaultOptions.temperature;
+            aliasConfig.options.topP          = AliasGeneratorConfig.DefaultOptions.topP;
+            aliasConfig.options.topK          = AliasGeneratorConfig.DefaultOptions.topK;
+            aliasConfig.options.maxTokens     = AliasGeneratorConfig.DefaultOptions.maxTokens;
+            aliasConfig.options.repeatPenalty = AliasGeneratorConfig.DefaultOptions.repeatPenalty;
+            Debug.Log("[NPCManager] Alias generator parameters reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the NPC-to-NPC conversation prompt to the built-in scenario-neutral default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset NPC Conversation Prompt to Default")]
+        private void ResetNPCConversationPromptToDefault()
+        {
+            conversationPrompts.npcConversationPrompt = ConversationPromptsSettings.DefaultNPCConversationPrompt;
+            Debug.Log("[NPCManager] NPC conversation prompt reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the idle-player prompt to the built-in scenario-neutral default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Idle Prompt to Default")]
+        private void ResetIdlePromptToDefault()
+        {
+            conversationPrompts.idlePrompt = ConversationPromptsSettings.DefaultIdlePrompt;
+            Debug.Log("[NPCManager] Idle player prompt reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the critical rules text to the built-in default.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Critical Rules to Default")]
+        private void ResetCriticalRulesToDefault()
+        {
+            rulesAndGuidelines.criticalRules = RulesAndGuidelinesSettings.DefaultCriticalRules;
+            Debug.Log("[NPCManager] Critical rules reset to default.");
+        }
+
+        /// <summary>
+        /// Resets the behavior guidelines text to the built-in generic default.
+        /// The default is scenario-neutral and works as a starting point for any NPC setup.
+        /// </summary>
+        [ContextMenu("Defaults/Reset Behavior Guidelines to Default")]
+        private void ResetBehaviorGuidelinesToDefault()
+        {
+            rulesAndGuidelines.behaviorGuidelines = RulesAndGuidelinesSettings.DefaultBehaviorGuidelines;
+            Debug.Log("[NPCManager] Behavior guidelines reset to default.");
+        }
+
+        /// <summary>
+        /// Reads the 'critical_rules' array from the loaded scenario JSON and writes it into
+        /// the inspector fallback field. Logs a warning if the JSON has no such array.
+        /// </summary>
+        [ContextMenu("Extract from JSON/Extract Critical Rules from JSON")]
+        private void ExtractCriticalRulesFromJSON()
+        {
+            if (scenarioConfig == null)
+            {
+                Debug.LogWarning("[NPCManager] No scenario loaded — cannot extract critical rules.");
+                return;
+            }
+            var rules = scenarioConfig.system_instructions?.critical_rules;
+            if (rules == null || rules.Length == 0)
+            {
+                Debug.LogWarning("[NPCManager] The loaded scenario JSON has no 'critical_rules' array.");
+                return;
+            }
+            rulesAndGuidelines.criticalRules = string.Join("\n", System.Array.ConvertAll(rules, r => $"• {r}"));
+            Debug.Log($"[NPCManager] Extracted {rules.Length} critical rule(s) from JSON.");
+        }
+
+        /// <summary>
+        /// Reads the 'behavior_guidelines' (or legacy 'teaching_behavior') array from the loaded
+        /// scenario JSON and writes it into the inspector fallback field.
+        /// Logs a warning if the JSON has neither array.
+        /// </summary>
+        [ContextMenu("Extract from JSON/Extract Behavior Guidelines from JSON")]
+        private void ExtractBehaviorGuidelinesFromJSON()
+        {
+            if (scenarioConfig == null)
+            {
+                Debug.LogWarning("[NPCManager] No scenario loaded — cannot extract behavior guidelines.");
+                return;
+            }
+            var guidelines = scenarioConfig.system_instructions?.behavior_guidelines;
+            if (guidelines == null || guidelines.Length == 0)
+                guidelines = scenarioConfig.system_instructions?.teaching_behavior;
+            if (guidelines == null || guidelines.Length == 0)
+            {
+                Debug.LogWarning("[NPCManager] The loaded scenario JSON has no 'behavior_guidelines' or 'teaching_behavior' array.");
+                return;
+            }
+            rulesAndGuidelines.behaviorGuidelines = string.Join("\n", System.Array.ConvertAll(guidelines, b => $"• {b}"));
+            Debug.Log($"[NPCManager] Extracted {guidelines.Length} behavior guideline(s) from JSON.");
         }
 
         public void AdvanceProgressionStep()
