@@ -1,9 +1,12 @@
 using System;
+using LAS;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 public class IKLookAt : MonoBehaviour
 {
+    [SerializeField] private Transform bodyTransform;
+    
     [Header("Head")]
     [SerializeField] private Transform headBone;
     [SerializeField] private float headPitchLimits;
@@ -16,48 +19,79 @@ public class IKLookAt : MonoBehaviour
     [SerializeField] private float torsoPitchLimits;
     [SerializeField] private float torsoYawLimits;
     [SerializeField] private float torsoRollLimits;
+
+    [Header("Legs")]
+    [SerializeField] private IkLegTurning legBehaviour;
     
     [Space(10)]
     [SerializeField] private float rotationSpeed;
 
+    [SerializeField] private Transform testTarget;
+
     private bool isTorsoClamped;
-    private bool isTorsoCentered = true;
 
     private Vector3 targetRotation;
-    
+
+    private void Update()
+    {
+        LookAtContinuous(testTarget);
+
+        //transform.position = Vector3.MoveTowards(transform.position, torsoBone.forward * 100, Time.deltaTime);
+    }
+
     private void LateUpdate()
     {
         RotateHead(targetRotation);
+        RotateTorso(targetRotation);
         
-        if(isHeadClamped || !isTorsoCentered)
-            RotateTorso(targetRotation - headBone.localEulerAngles);
     }
 
     public void LookAt(Transform lookAtTarget)
     {
-        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position + Vector3.up - headBone.position);
+        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
-        targetRotation = angle.eulerAngles - Quaternion.LookRotation(transform.forward).eulerAngles;
+        targetRotation = angle.eulerAngles - Quaternion.LookRotation(headBone.forward).eulerAngles;
     }
-
-    /// <summary>Returns the head and torso to their neutral (forward-facing) rotation.</summary>
-    public void ClearTarget()
+    
+    public void LookAtContinuous(Transform lookAtTarget)
     {
-        targetRotation = Vector3.zero;
-    }
+        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
-    private void RotateHead(Vector3 angle)
-    {
-        isHeadClamped = IsClamped(angle.y, headYawLimits);
-
-        headBone.localEulerAngles = ClampRotation(angle, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
-    }
-
-    private void RotateTorso(Vector3 angle)
-    {
-        torsoBone.localEulerAngles = ClampRotation(angle, new Vector3(torsoPitchLimits, torsoYawLimits, torsoRollLimits));
+        if (isHeadClamped && isTorsoClamped)
+            legBehaviour.RotateTowards(angle.eulerAngles);
         
-        isTorsoCentered = torsoBone.localEulerAngles == Vector3.zero;
+        angle.eulerAngles -= Quaternion.LookRotation(headBone.forward).eulerAngles;
+
+        Vector3 maxRotation = GetDirectionalNormalized(angle.eulerAngles) * (rotationSpeed * Time.deltaTime);
+
+        if(angle.eulerAngles.magnitude < maxRotation.magnitude)
+            targetRotation = angle.eulerAngles;
+        else
+            targetRotation = maxRotation;
+    }
+
+    private void RotateHead(Vector3 targetAngle)
+    {
+        Vector3 angle = targetAngle * 0.7f;
+        
+        isHeadClamped = IsClamped(headBone.localEulerAngles.y + angle.y, headYawLimits);
+
+        if (isHeadClamped)
+            return;
+        
+        headBone.localEulerAngles = ClampRotation(headBone.localEulerAngles + angle, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+    }
+
+    private void RotateTorso(Vector3 targetAngle)
+    {
+        Vector3 angle = targetAngle * 0.3f;
+        
+        isTorsoClamped = IsClamped(torsoBone.localEulerAngles.y + angle.y, torsoYawLimits);
+
+        if (isTorsoClamped)
+            return;
+        
+        torsoBone.localEulerAngles = ClampRotation(torsoBone.localEulerAngles + angle, new Vector3(torsoPitchLimits, torsoYawLimits, torsoRollLimits));
     }
 
     private Vector3 ClampRotation(Vector3 vectorToClamp, Vector3 clampLimits)
@@ -84,9 +118,28 @@ public class IKLookAt : MonoBehaviour
         
         return outputAngle;
     }
-
+    
     private bool IsClamped(float angleToCheck, float angleClamp)
     {
         return angleToCheck > angleClamp && angleToCheck < 360 - angleClamp;
+    }
+
+    private Vector3 GetDirectionalNormalized(Vector3 vectorToNormalize)
+    {
+        Vector3 normalized = vectorToNormalize.normalized;
+
+        float x, y, z;
+
+        // if the rotation values are between 180 and 360 degrees, target is on the left
+        x = vectorToNormalize.x > 180 ? -1 : 1;
+        y = vectorToNormalize.y > 180 ? -1 : 1;
+        z = vectorToNormalize.z > 180 ? -1 : 1;
+        
+        return new Vector3(normalized.x * x, normalized.y * y, normalized.z * z);
+    }
+
+    private void OnAnimatorIK(int layerIndex)
+    {
+
     }
 }
