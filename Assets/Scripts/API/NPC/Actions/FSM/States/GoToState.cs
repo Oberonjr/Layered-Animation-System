@@ -17,9 +17,11 @@ namespace LAS
         private float _range;
         private bool _ready;
 
-        private float blendDuration = 0.5f;
+        private float blendDuration = 0.3f;
+        private bool isBlending;
         
         private bool isDestinationSet = false;
+
 
         public GoToState(Transform target, float rangeOverride = -1f) : base(null)
         {
@@ -41,7 +43,6 @@ namespace LAS
             }
 
             _range = _rangeOverride > 0f ? _rangeOverride : ctx.ArrivalDistance;
-            ctx.LookAt.EnableLegIK(true);
             ctx.LookAt.SetTarget(_target);
             ctx.Agent.stoppingDistance = 0f;
             _startTime = Time.time;
@@ -52,20 +53,26 @@ namespace LAS
         {
             if (_target == null || !_ready) return true;
 
+            // Start walk animation to blend between turning and walking
+            if (ctx.LookAt.canStartAnim)
+            {
+                ctx.LookAt.EnableLegIK(false);
+                BlendWalkAnim(0, 1, ctx);
+            }
+            
             if(!ctx.LookAt.isLookingAtTarget)
                 return false;
             
             // Wait until NPC is looking at target before starting to move
             if (ctx.LookAt.isLookingAtTarget && !isDestinationSet)
             {
-                ctx.Agent.SetDestination(_target.position);
-
-                DOVirtual.Float(0.0f, 1.0f, blendDuration, value =>
+                if (!ctx.LookAt.canStartAnim)
                 {
-                    ctx.Animator.SetFloat("Blend", value);
-                });
+                    ctx.LookAt.EnableLegIK(false);
+                    BlendWalkAnim(0, 1, ctx);
+                }
                 
-                ctx.LookAt.EnableLegIK(false);
+                ctx.Agent.SetDestination(_target.position);
                 isDestinationSet = true;
             }
             
@@ -94,13 +101,28 @@ namespace LAS
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
-            DOVirtual.Float(1.0f, 0.0f, blendDuration, value =>
-            {
-                ctx.Animator.SetFloat("Blend", value);
-            });
+            ctx.LookAt.EnableLegIK(true);
+            BlendWalkAnim(1, 0, ctx);
             
             Debug.Log("Stop walking");
             if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
+        }
+        
+        private void BlendWalkAnim(float start, float end, NPCBehaviourContext ctx)
+        {
+            if (isBlending || Mathf.Abs(ctx.Animator.GetFloat("Blend") - start) > 0.1f)
+                return;
+
+            isBlending = true;
+            
+            DOVirtual.Float(start, end, blendDuration, value =>
+            {
+                ctx.Animator.SetFloat("Blend", value);
+                //Debug.Log(ctx.Animator.GetFloat("Blend") + " | " + value + " | " + end);
+            }).OnComplete(() =>
+            {
+                isBlending = false;
+            });
         }
     }
 }

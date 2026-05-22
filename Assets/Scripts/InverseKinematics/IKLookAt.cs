@@ -30,6 +30,8 @@ public class IKLookAt : MonoBehaviour
 
     [SerializeField] private Transform testTarget;
 
+    [HideInInspector] public bool canStartAnim;
+    
     private bool isTorsoClamped;
 
     private Vector3 targetRotation;
@@ -37,6 +39,7 @@ public class IKLookAt : MonoBehaviour
     private bool isLookingAtTarget;
 
     private bool isRotating;
+    
 
     private void Update()
     {
@@ -93,6 +96,8 @@ public class IKLookAt : MonoBehaviour
     {
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
+        canStartAnim = legBehaviour.canStartAnim;
+        
         if (!legBehaviour.isRotating)
         {
             if (Mathf.Abs(angle.eulerAngles.y - Quaternion.LookRotation(headBone.forward).eulerAngles.y) < 5)

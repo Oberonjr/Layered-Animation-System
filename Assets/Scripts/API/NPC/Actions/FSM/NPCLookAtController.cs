@@ -15,6 +15,7 @@ namespace LAS
         private Transform _target;
         
         public bool isLookingAtTarget { get; private set; }
+        public bool canStartAnim { get; private set; }
 
         public Transform Target => _target;
 
@@ -44,7 +45,10 @@ namespace LAS
         public void Tick()
         {
             if (_target != null)
+            {
                 isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
+                canStartAnim = _ikLookAt.canStartAnim;
+            }
             else
                 _ikLookAt.ClearTarget();
         }
