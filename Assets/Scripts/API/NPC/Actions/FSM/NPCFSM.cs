@@ -94,8 +94,6 @@ namespace LAS
                 _ctx.Agent.ResetPath();
                 _ctx.Agent.isStopped = false;
             }
-
-            _ctx.Animator?.SetTrigger("StopWalking");
         }
 
         // ── Internal ──────────────────────────────────────────────────────────────

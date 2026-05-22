@@ -19,7 +19,6 @@ namespace LAS
             if (_targetNPC == null) return;
 
             ctx.LookAt.SetTarget(_targetNPC.transform);
-            ctx.Animator?.SetTrigger("StartWalking");
             ctx.Agent.stoppingDistance = 0f;
             ctx.Agent.SetDestination(_targetNPC.transform.position);
             _startTime = Time.time;
@@ -51,7 +50,6 @@ namespace LAS
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
-            ctx.Animator?.SetTrigger("StopWalking");
             if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
         }
 

@@ -2,6 +2,7 @@ using System;
 using LAS;
 using UnityEngine;
 using UnityEngine.UIElements;
+using DG.Tweening;
 
 public class IKLookAt : MonoBehaviour
 {
@@ -12,6 +13,7 @@ public class IKLookAt : MonoBehaviour
     [SerializeField] private float headPitchLimits;
     [SerializeField] private float headYawLimits;
     [SerializeField] private float headRollLimits;
+    [SerializeField] private AnimationCurve headRotationCurve;
     private bool isHeadClamped;
 
     [Header("Torso")] 
@@ -31,31 +33,78 @@ public class IKLookAt : MonoBehaviour
     private bool isTorsoClamped;
 
     private Vector3 targetRotation;
+    
+    private bool isLookingAtTarget;
+
+    private bool isRotating;
 
     private void Update()
     {
-        LookAtContinuous(testTarget);
+        //LookAtContinuous(testTarget);
 
         //transform.position = Vector3.MoveTowards(transform.position, torsoBone.forward * 100, Time.deltaTime);
     }
 
     private void LateUpdate()
     {
+        if (isLookingAtTarget)
+            return;
+        
         RotateHead(targetRotation);
         RotateTorso(targetRotation);
-        
     }
 
-    public void LookAt(Transform lookAtTarget)
+    public bool LookAt(Transform lookAtTarget)
     {
+        if (isRotating)
+            return false;
+        
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
-        targetRotation = angle.eulerAngles - Quaternion.LookRotation(headBone.forward).eulerAngles;
+        if (Mathf.Abs(angle.eulerAngles.y - Quaternion.LookRotation(headBone.forward).eulerAngles.y) < 5)
+        {
+            //Debug.Log("Look at returns true");
+            isLookingAtTarget = true;
+            return isLookingAtTarget;
+        }
+
+        if (isHeadClamped)
+            return true;
+        
+        // Reset isLookingAtTarget if the above check fails
+        if(isLookingAtTarget)
+            isLookingAtTarget = false;
+        
+        Vector3 targetAngle = angle.eulerAngles - Quaternion.LookRotation(headBone.forward).eulerAngles;
+        
+        //targetRotation = angle.eulerAngles - Quaternion.LookRotation(headBone.forward).eulerAngles;
+        
+        DORotateHead(targetAngle);
+
+        return false;
+    }
+
+    public void ClearTarget()
+    {
+        //targetRotation = Quaternion.LookRotation(bodyTransform.forward).eulerAngles;
     }
     
-    public void LookAtContinuous(Transform lookAtTarget)
+    public bool LookAtContinuous(Transform lookAtTarget)
     {
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
+
+        if (!legBehaviour.isRotating)
+        {
+            if (Mathf.Abs(angle.eulerAngles.y - Quaternion.LookRotation(headBone.forward).eulerAngles.y) < 5)
+            {
+                //Debug.Log("Look at returns true");
+                isLookingAtTarget = true;
+                return isLookingAtTarget;
+            }
+        }
+        
+        if(isLookingAtTarget)
+            isLookingAtTarget = false;
 
         if (isHeadClamped && isTorsoClamped)
             legBehaviour.RotateTowards(angle.eulerAngles);
@@ -68,6 +117,8 @@ public class IKLookAt : MonoBehaviour
             targetRotation = angle.eulerAngles;
         else
             targetRotation = maxRotation;
+
+        return false;
     }
 
     private void RotateHead(Vector3 targetAngle)
@@ -80,6 +131,30 @@ public class IKLookAt : MonoBehaviour
             return;
         
         headBone.localEulerAngles = ClampRotation(headBone.localEulerAngles + angle, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+    }
+
+    private void DORotateHead(Vector3 targetAngle)
+    {
+        isRotating = true;
+        Vector3 angle = targetAngle * 0.7f;
+
+        if (isHeadClamped)
+            return;
+        
+        Debug.Log(angle);
+        
+        isHeadClamped = IsClamped(headBone.localEulerAngles.y + angle.y, headYawLimits);
+        
+        angle = ClampRotation(headBone.localEulerAngles + angle,
+            new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+
+        Debug.Log(angle);
+        
+        headBone.DORotate(angle, rotationSpeed, RotateMode.FastBeyond360).SetSpeedBased(true).OnComplete(() =>
+        {
+            Debug.Log(headBone.localEulerAngles);
+            isRotating = false;
+        });
     }
 
     private void RotateTorso(Vector3 targetAngle)
@@ -138,8 +213,8 @@ public class IKLookAt : MonoBehaviour
         return new Vector3(normalized.x * x, normalized.y * y, normalized.z * z);
     }
 
-    private void OnAnimatorIK(int layerIndex)
+    public void EnableLegIK(bool value)
     {
-
+        legBehaviour.EnableLegIk(value);
     }
 }

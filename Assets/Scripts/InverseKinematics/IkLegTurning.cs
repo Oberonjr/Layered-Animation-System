@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
+using Unity.Burst;
 using UnityEngine;
+using UnityEngine.Animations.Rigging;
 
 namespace LAS
 {
@@ -26,16 +28,24 @@ namespace LAS
         [SerializeField] private AnimationCurve legMovementCurve;
         [SerializeField] private AnimationCurve legVerticalMovementCurve;
         [SerializeField] private float maxFootHeight;
+        
+        [Header("Left foot")] 
+        [SerializeField] private Transform leftPivot;
+        [SerializeField] private TwoBoneIKConstraint leftConstraint;
+
+        [Header("Right foot")] 
+        [SerializeField] private Transform rightPivot;
+        [SerializeField] private TwoBoneIKConstraint rightConstraint;
 
 
-        [Header("Left foot")] [SerializeField] private Transform leftPivot;
-
-        [Header("Right foot")] [SerializeField]
-        private Transform rightPivot;
-
-        [Header("Body")] [SerializeField] private Transform body;
+        [Header("Body")] 
+        [SerializeField] private Transform root;
+        [SerializeField] private Transform body;
         [SerializeField] private Transform bodyIKPivot;
-
+        [SerializeField] private float walkBlendThreshold;
+        
+        public bool isRotating;
+        
         private FootIKData leftFoot;
         private FootIKData rightFoot;
 
@@ -43,7 +53,6 @@ namespace LAS
 
         private Vector3 targetRotation;
         private Vector3 targetAngle;
-
 
         private Vector3 startBodyRotation;
         
@@ -76,7 +85,9 @@ namespace LAS
                 bodyRotationValue = 0;
                 
                 startBodyRotation = body.eulerAngles;
-            
+
+                catchingUp = false;
+                
                 if(this.targetRotation.y < 0)
                     StartCoroutine(MoveFootCo(leftFoot));
                 else
@@ -84,16 +95,18 @@ namespace LAS
             }
         }
 
-        private void MoveFoot(FootIKData foot)
+        public void EnableLegIk(bool value)
         {
-             if(foot.isGrounded)
-                 foot.isGrounded = false;
-             
-             if ((foot.pivot.eulerAngles - targetRotation).magnitude < rotationSpeed * Time.deltaTime)
-             {
-                 catchupFoot = foot.otherFoot;
-                 foot.isGrounded = true;
-             }
+            if (!value)
+            {
+                leftConstraint.weight = 0;
+                rightConstraint.weight = 0;
+            }
+            else
+            {
+                leftConstraint.weight = 1;
+                rightConstraint.weight = 1;
+            }
         }
 
         private FootIKData EvaluateFootToMove(float yRotation)
@@ -113,8 +126,18 @@ namespace LAS
             return rightFoot;
         }
 
+        private void ResetRotations()
+        {
+            root.rotation = body.rotation;
+            body.localRotation = Quaternion.Euler(Vector3.zero);
+            bodyIKPivot.localRotation = Quaternion.Euler(Vector3.zero);
+            rightPivot.localRotation = Quaternion.Euler(Vector3.zero);
+            leftPivot.localRotation =  Quaternion.Euler(Vector3.zero);
+        }
+
         private IEnumerator MoveFootCo(FootIKData foot)
         {
+            isRotating = true;
             float timeElapsed = 0;
             Vector3 startRotation = foot.pivot.eulerAngles;
             
@@ -124,18 +147,15 @@ namespace LAS
             
             while (Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y) > rotationSpeed * Time.deltaTime)
             {
-                //Debug.Log(Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y));
-                
                 Vector3 rotation;
                 
                 rotation = targetRotation * legMovementCurve.Evaluate(timeElapsed) ;
                 
                 foot.pivot.eulerAngles = startRotation + rotation;
 
-                // +++++++ FIX TORSO ROTATION +++++++++++
-                
-                body.eulerAngles = startBodyRotation + targetRotation * legMovementCurve.Evaluate(bodyRotationValue);
-                bodyIKPivot.eulerAngles = startBodyRotation + targetRotation * legMovementCurve.Evaluate(bodyRotationValue);
+                Vector3 bodyTarget = new Vector3(0, targetRotation.y, 0);
+                body.eulerAngles = startBodyRotation + bodyTarget * legMovementCurve.Evaluate(bodyRotationValue);
+                bodyIKPivot.eulerAngles = startBodyRotation + bodyTarget * legMovementCurve.Evaluate(bodyRotationValue);
                 
                 footHeight = legVerticalMovementCurve.Evaluate(timeElapsed) * maxFootHeight;
                 foot.pivot.localPosition = Vector3.up * footHeight;
@@ -143,20 +163,28 @@ namespace LAS
                 float delta = Time.deltaTime * rotationSpeed;
                 timeElapsed += delta / 3 * 2;
                 bodyRotationValue += delta / 3;
-                
+
                 yield return null;
             }
 
-            foot.pivot.position = Vector3.zero;
+            foot.pivot.localPosition = Vector3.zero;
             
+            if (catchingUp)
+            {
+                isRotating = false;
+                ResetRotations();
+            }
             
             if (!catchingUp)
             {
                 foot.isGrounded = true;
                 catchingUp = true;
+                
+                Debug.Log("Start moving other foot");
+                
                 StartCoroutine(MoveFootCo(foot.otherFoot));
             }
-            
+
             catchingUp = false;
             foot.isGrounded = true;
         }
