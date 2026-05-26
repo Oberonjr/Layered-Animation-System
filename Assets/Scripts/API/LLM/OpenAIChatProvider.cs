@@ -44,6 +44,11 @@ namespace LAS
                  "Use the buttons below to open or locate the key file.")]
         [SerializeField] private string apiKeyName = "OPENAI_API_KEY";
 
+        [Header("Action Classification Model")]
+        [Tooltip("Model used for Step 2 action classification. Leave empty to use the dialogue model above. " +
+                 "Use a more capable model here (e.g. 'gpt-4o') if a cheaper dialogue model misclassifies actions.")]
+        [SerializeField] private string actionModelName = "";
+
         // ── Internal state ────────────────────────────────────────────────────────
 
         private UnityWebRequest _activeRequest;
@@ -101,12 +106,22 @@ namespace LAS
             }
         }
 
-        /// <summary>
-        /// Posts the structured request to the chat/completions endpoint with streaming.
-        /// Maps LLMRequest directly to the OpenAI messages array: system → history → user.
-        /// Calls onComplete with the accumulated string; skips the call on failure or interrupt.
-        /// </summary>
         public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            return SendWithModel(modelName, request, options, onComplete);
+        }
+
+        public override IEnumerator SendActionRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            string model = string.IsNullOrWhiteSpace(actionModelName) ? modelName : actionModelName;
+            return SendWithModel(model, request, options, onComplete);
+        }
+
+        /// <summary>
+        /// Posts a structured request to the chat/completions endpoint using the given model.
+        /// Both SendRequest and SendActionRequest delegate here, differing only in which model is used.
+        /// </summary>
+        private IEnumerator SendWithModel(string model, LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
             if (string.IsNullOrEmpty(EffectiveApiKey) || string.IsNullOrEmpty(EffectiveBaseUrl))
             {
@@ -114,7 +129,7 @@ namespace LAS
                 yield break;
             }
 
-            if (string.IsNullOrEmpty(modelName))
+            if (string.IsNullOrEmpty(model))
             {
                 Debug.LogError("[OpenAIChatProvider] Model name is empty. Set it on the provider asset (e.g. 'gpt-4o', 'deepseek-chat', 'mistral-medium').");
                 yield break;
@@ -122,12 +137,11 @@ namespace LAS
 
             var requestBody = new ChatCompletionRequest
             {
-                model       = modelName,
+                model       = model,
                 messages    = BuildMessages(request),
                 temperature = options.temperature,
                 max_tokens  = options.maxTokens,
                 top_p       = options.topP,
-                // Map repeatPenalty (Ollama 1.0–2.0 scale) to frequency_penalty (OpenAI 0–2 scale).
                 frequency_penalty = Mathf.Max(0f, options.repeatPenalty - 1.0f),
                 stream      = true
             };
@@ -144,9 +158,9 @@ namespace LAS
             www.SetRequestHeader("Authorization", $"Bearer {EffectiveApiKey}");
             www.timeout = 0;
 
-            var op = www.SendWebRequest();
-            var sb    = new StringBuilder(); // parsed token content
-            var raw   = new StringBuilder(); // full raw body (for error reporting)
+            var op  = www.SendWebRequest();
+            var sb  = new StringBuilder();
+            var raw = new StringBuilder();
 
             while (!op.isDone)
             {
@@ -177,15 +191,13 @@ namespace LAS
                 bool wasAborted = www.result == UnityWebRequest.Result.ConnectionError
                                   && error != null && error.Contains("aborted");
                 if (wasAborted)
-                {
                     Debug.LogWarning("[OpenAIChatProvider] Request interrupted by player.");
-                }
                 else
                 {
                     string body = raw.ToString().Trim();
                     Debug.LogError(
                         $"[OpenAIChatProvider] Request failed — HTTP {code} ({error})\n" +
-                        $"  Provider : {preset}  Model: '{modelName}'\n" +
+                        $"  Provider : {preset}  Model: '{model}'\n" +
                         $"  URL      : {url}\n" +
                         (string.IsNullOrEmpty(body) ? "" : $"  Response : {body}"));
                 }

@@ -536,7 +536,7 @@ namespace LAS {
                 Debug.Log($"[NPCManager] === LLM REQUEST (Action) ===\n{step2Request.userContent}");
 
             string step2Raw = null;
-            yield return StartCoroutine(llmProvider.SendRequest(step2Request, actionOptions, r => step2Raw = r));
+            yield return StartCoroutine(llmProvider.SendActionRequest(step2Request, actionOptions, r => step2Raw = r));
 
             // Step 2 failure is non-fatal — NPC simply performs no physical action.
             NPCActionSequence actionSequence = null;

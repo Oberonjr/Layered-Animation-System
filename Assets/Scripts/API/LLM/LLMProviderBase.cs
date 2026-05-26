@@ -57,6 +57,16 @@ namespace LAS
         }
 
         /// <summary>
+        /// Sends a Step 2 action classification request, optionally using a different (more capable)
+        /// model than the one used for dialogue. Defaults to SendRequest if not overridden — no
+        /// behaviour change for providers that don't configure a separate action model.
+        /// </summary>
+        public virtual IEnumerator SendActionRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            return SendRequest(request, options, onComplete);
+        }
+
+        /// <summary>
         /// Immediately aborts any in-progress web request.
         /// Called by NPCManager.InterruptCurrentGeneration() when the player sends a new message.
         /// </summary>

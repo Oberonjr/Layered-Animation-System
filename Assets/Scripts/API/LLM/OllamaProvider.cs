@@ -27,16 +27,27 @@ namespace LAS
         [Tooltip("Index into availableModels for the active model. Change this to switch models at runtime.")]
         [SerializeField] private int selectedModelIndex = 0;
 
+        [Header("Action Classification Model")]
+        [Tooltip("Index into availableModels for Step 2 action classification. Set to -1 to use the same model as dialogue. " +
+                 "Use a larger model here if the dialogue model misclassifies actions.")]
+        [SerializeField] private int actionModelIndex = -1;
+
         private const int DEFAULT_PORT = 11434;
         private UnityWebRequest _activeRequest;
 
         public override string ProviderDisplayName => "Ollama (Local)";
 
-        /// <summary>The model that will be used for generation requests.</summary>
+        /// <summary>The model used for dialogue generation.</summary>
         public string EffectiveModel =>
             (selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count)
                 ? availableModels[selectedModelIndex]
                 : modelName;
+
+        /// <summary>The model used for action classification. Falls back to EffectiveModel if actionModelIndex is -1 or out of range.</summary>
+        public string EffectiveActionModel =>
+            (actionModelIndex >= 0 && actionModelIndex < availableModels.Count)
+                ? availableModels[actionModelIndex]
+                : EffectiveModel;
 
         /// <summary>
         /// Probes common localhost addresses for a running Ollama server and fetches its model list.
@@ -93,16 +104,24 @@ namespace LAS
             yield break;
         }
 
-        /// <summary>
-        /// Streams a chat request to Ollama's /api/chat endpoint.
-        /// Uses the structured message format (system → history → user) so the local model's
-        /// KV cache can reuse the system prompt tokens across turns in the same session.
-        /// Accumulates all response tokens and calls onComplete with the full string.
-        /// If Interrupt() is called mid-stream the request is aborted and onComplete is not called.
-        /// </summary>
         public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
-            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(EffectiveModel))
+            return SendWithModel(EffectiveModel, request, options, onComplete);
+        }
+
+        public override IEnumerator SendActionRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            return SendWithModel(EffectiveActionModel, request, options, onComplete);
+        }
+
+        /// <summary>
+        /// Streams a chat request to Ollama's /api/chat endpoint using the given model.
+        /// Uses the structured message format so the local model's KV cache can reuse
+        /// system prompt tokens across turns. Both SendRequest and SendActionRequest delegate here.
+        /// </summary>
+        private IEnumerator SendWithModel(string model, LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(model))
             {
                 Debug.LogError("[OllamaProvider] Not configured. Call Connect() first.");
                 yield break;
@@ -110,7 +129,7 @@ namespace LAS
 
             var requestData = new OllamaChatRequest
             {
-                model    = EffectiveModel,
+                model    = model,
                 messages = BuildMessages(request),
                 stream   = true,
                 options  = new OllamaOptions
@@ -144,19 +163,17 @@ namespace LAS
                 yield return null;
             }
 
-            // Flush any remaining buffered data.
             if (streamHandler.HasNewData())
                 ParseChunks(streamHandler.GetNewText(), sb);
 
-            bool success = www.result == UnityWebRequest.Result.Success;
-            bool wasAborted = www.result == UnityWebRequest.Result.ConnectionError;
-            string error = www.error;
+            bool   success    = www.result == UnityWebRequest.Result.Success;
+            bool   wasAborted = www.result == UnityWebRequest.Result.ConnectionError;
+            string error      = www.error;
             www.Dispose();
             _activeRequest = null;
 
             if (!success)
             {
-                // Aborts are intentional (player interrupted) — log at a lower level to avoid noise.
                 if (wasAborted && error != null && error.Contains("aborted"))
                     Debug.LogWarning("[OllamaProvider] Request interrupted by player.");
                 else

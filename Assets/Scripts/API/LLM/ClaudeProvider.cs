@@ -32,6 +32,11 @@ namespace LAS
                  "Use the buttons below to open or locate the key file.")]
         [SerializeField] private string apiKeyName = "ANTHROPIC_API_KEY";
 
+        [Header("Action Classification Model")]
+        [Tooltip("Model used for Step 2 action classification. Leave empty to use the dialogue model above. " +
+                 "Use a more capable model here (e.g. 'claude-opus-4-7') if a cheaper dialogue model misclassifies actions.")]
+        [SerializeField] private string actionModelName = "";
+
         private const string BASE_URL    = "https://api.anthropic.com/v1";
         private const string API_VERSION = "2023-06-01";
 
@@ -75,12 +80,22 @@ namespace LAS
             }
         }
 
-        /// <summary>
-        /// Sends a structured request to /v1/messages with streaming.
-        /// Maps LLMRequest directly: systemContent → top-level "system" field,
-        /// history + userContent → the messages array.
-        /// </summary>
         public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            return SendWithModel(modelName, request, options, onComplete);
+        }
+
+        public override IEnumerator SendActionRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
+        {
+            string model = string.IsNullOrWhiteSpace(actionModelName) ? modelName : actionModelName;
+            return SendWithModel(model, request, options, onComplete);
+        }
+
+        /// <summary>
+        /// Sends a structured request to /v1/messages with streaming using the given model.
+        /// Both SendRequest and SendActionRequest delegate here.
+        /// </summary>
+        private IEnumerator SendWithModel(string model, LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
             if (string.IsNullOrEmpty(EffectiveApiKey))
             {
@@ -88,15 +103,15 @@ namespace LAS
                 yield break;
             }
 
-            if (string.IsNullOrEmpty(modelName))
+            if (string.IsNullOrEmpty(model))
             {
-                Debug.LogError("[ClaudeProvider] Model name is empty. Set it on the provider asset (e.g. 'claude-sonnet-4-5').");
+                Debug.LogError("[ClaudeProvider] Model name is empty. Set it on the provider asset (e.g. 'claude-sonnet-4-6').");
                 yield break;
             }
 
             var requestBody = new AnthropicRequest
             {
-                model       = modelName,
+                model       = model,
                 max_tokens  = options.maxTokens,
                 temperature = options.temperature,
                 system      = request.systemContent ?? "",
@@ -118,8 +133,8 @@ namespace LAS
             www.timeout = 0;
 
             var op  = www.SendWebRequest();
-            var sb  = new StringBuilder(); // parsed token content
-            var raw = new StringBuilder(); // full raw body (for error reporting)
+            var sb  = new StringBuilder();
+            var raw = new StringBuilder();
 
             while (!op.isDone)
             {
@@ -150,7 +165,7 @@ namespace LAS
                 string body = raw.ToString().Trim();
                 Debug.LogError(
                     $"[ClaudeProvider] Request failed — HTTP {code} ({error})\n" +
-                    $"  Model: '{modelName}'\n" +
+                    $"  Model: '{model}'\n" +
                     (string.IsNullOrEmpty(body) ? "" : $"  Response: {body}"));
                 yield break;
             }
