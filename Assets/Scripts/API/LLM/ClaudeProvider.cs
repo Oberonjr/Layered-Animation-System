@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -75,12 +76,11 @@ namespace LAS
         }
 
         /// <summary>
-        /// Sends a request to /v1/messages with streaming.
-        /// The flat NPCManager prompt is split at "=== CURRENT INPUT ===" so that
-        /// context and rules land in Anthropic's top-level "system" field and the
-        /// player's message lands in the "user" turn — matching how Claude expects input.
+        /// Sends a structured request to /v1/messages with streaming.
+        /// Maps LLMRequest directly: systemContent → top-level "system" field,
+        /// history + userContent → the messages array.
         /// </summary>
-        public override IEnumerator SendRequest(string prompt, LLMGenerationOptions options, Action<string> onComplete)
+        public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
             if (string.IsNullOrEmpty(EffectiveApiKey))
             {
@@ -94,15 +94,13 @@ namespace LAS
                 yield break;
             }
 
-            var (systemPrompt, userMessage) = SplitPrompt(prompt);
-
             var requestBody = new AnthropicRequest
             {
                 model       = modelName,
                 max_tokens  = options.maxTokens,
                 temperature = options.temperature,
-                system      = systemPrompt,
-                messages    = new[] { new AnthropicMessage { role = "user", content = userMessage } },
+                system      = request.systemContent ?? "",
+                messages    = BuildMessages(request),
                 stream      = true
             };
 
@@ -167,27 +165,24 @@ namespace LAS
             _activeRequest = null;
         }
 
-        // ── Prompt splitting ──────────────────────────────────────────────────────
+        // ── Message construction ──────────────────────────────────────────────────
 
         /// <summary>
-        /// Splits the flat NPCManager prompt into (systemPrompt, userMessage).
-        /// Anthropic natively separates these, so this mapping is clean and lossless.
+        /// Maps LLMRequest history + userContent into Anthropic's messages array.
+        /// systemContent is sent as the top-level "system" field, not as a message.
         /// </summary>
-        private static (string system, string user) SplitPrompt(string prompt)
+        private static AnthropicMessage[] BuildMessages(LLMRequest request)
         {
-            const string MARKER = "=== CURRENT INPUT ===";
-            int idx = prompt.IndexOf(MARKER, StringComparison.Ordinal);
+            var messages = new List<AnthropicMessage>();
 
-            if (idx >= 0)
-            {
-                return (
-                    prompt.Substring(0, idx).TrimEnd(),
-                    prompt.Substring(idx + MARKER.Length).TrimStart()
-                );
-            }
+            if (request.history != null)
+                foreach (var msg in request.history)
+                    messages.Add(new AnthropicMessage { role = msg.role, content = msg.content });
 
-            // No marker (e.g. action classification) — entire prompt is instructions.
-            return (prompt, "Respond with JSON.");
+            if (!string.IsNullOrEmpty(request.userContent))
+                messages.Add(new AnthropicMessage { role = "user", content = request.userContent });
+
+            return messages.ToArray();
         }
 
         // ── Anthropic SSE parsing ─────────────────────────────────────────────────

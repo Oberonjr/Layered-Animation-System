@@ -29,14 +29,14 @@ namespace LAS
         public abstract string ProviderDisplayName { get; }
 
         /// <summary>
-        /// Sends a prompt to the LLM and returns the complete accumulated response via callback.
+        /// Sends a structured prompt to the LLM and returns the complete accumulated response via callback.
         /// Calls onComplete(responseText) on success, or skips the call on failure or interrupt.
         /// This is a coroutine — yield return it from NPCManager.
         /// </summary>
-        /// <param name="prompt">The full prompt string (context + instructions).</param>
+        /// <param name="request">Structured prompt: static system context, conversation history, and current user turn.</param>
         /// <param name="options">Generation parameters (temperature, tokens, etc.).</param>
         /// <param name="onComplete">Callback receiving the full response text. Not called on failure.</param>
-        public abstract IEnumerator SendRequest(string prompt, LLMGenerationOptions options, Action<string> onComplete);
+        public abstract IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete);
 
         /// <summary>
         /// Tests connectivity and discovers available models.

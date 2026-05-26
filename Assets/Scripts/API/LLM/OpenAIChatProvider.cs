@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -101,15 +102,11 @@ namespace LAS
         }
 
         /// <summary>
-        /// Posts the prompt to the chat/completions endpoint with streaming.
-        /// The prompt is split into system + user roles so that GPT instruction-tuned models
-        /// treat scenario rules, character definitions, and response format as authoritative directives.
-        /// If the prompt contains "=== CURRENT INPUT ===" the content before it becomes the system
-        /// message and the player input becomes the user message. Otherwise the full prompt is the
-        /// system message with a minimal user trigger.
+        /// Posts the structured request to the chat/completions endpoint with streaming.
+        /// Maps LLMRequest directly to the OpenAI messages array: system → history → user.
         /// Calls onComplete with the accumulated string; skips the call on failure or interrupt.
         /// </summary>
-        public override IEnumerator SendRequest(string prompt, LLMGenerationOptions options, Action<string> onComplete)
+        public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
             if (string.IsNullOrEmpty(EffectiveApiKey) || string.IsNullOrEmpty(EffectiveBaseUrl))
             {
@@ -126,7 +123,7 @@ namespace LAS
             var requestBody = new ChatCompletionRequest
             {
                 model       = modelName,
-                messages    = BuildMessages(prompt),
+                messages    = BuildMessages(request),
                 temperature = options.temperature,
                 max_tokens  = options.maxTokens,
                 top_p       = options.topP,
@@ -177,12 +174,21 @@ namespace LAS
 
             if (!success)
             {
-                string body = raw.ToString().Trim();
-                Debug.LogError(
-                    $"[OpenAIChatProvider] Request failed — HTTP {code} ({error})\n" +
-                    $"  Provider : {preset}  Model: '{modelName}'\n" +
-                    $"  URL      : {url}\n" +
-                    (string.IsNullOrEmpty(body) ? "" : $"  Response : {body}"));
+                bool wasAborted = www.result == UnityWebRequest.Result.ConnectionError
+                                  && error != null && error.Contains("aborted");
+                if (wasAborted)
+                {
+                    Debug.LogWarning("[OpenAIChatProvider] Request interrupted by player.");
+                }
+                else
+                {
+                    string body = raw.ToString().Trim();
+                    Debug.LogError(
+                        $"[OpenAIChatProvider] Request failed — HTTP {code} ({error})\n" +
+                        $"  Provider : {preset}  Model: '{modelName}'\n" +
+                        $"  URL      : {url}\n" +
+                        (string.IsNullOrEmpty(body) ? "" : $"  Response : {body}"));
+                }
                 yield break;
             }
 
@@ -192,40 +198,25 @@ namespace LAS
         // ── Message construction ──────────────────────────────────────────────────
 
         /// <summary>
-        /// Splits the flat NPCManager prompt into system + user messages.
-        /// GPT instruction-tuned models follow rules much more reliably when they arrive
-        /// in the system role rather than the user role.
-        ///
-        /// Strategy:
-        ///   • If the prompt contains "=== CURRENT INPUT ===" (dialogue step):
-        ///       system = everything before the marker (context, rules, characters)
-        ///       user   = the player's input + any trailing response-format instructions
-        ///   • Otherwise (action classification, or any other prompt without the marker):
-        ///       system = entire prompt
-        ///       user   = minimal trigger so the API receives at least one user turn
+        /// Maps an LLMRequest to the OpenAI messages array.
+        /// System content → role "system". History messages pass through as-is.
+        /// User content → role "user" (always the final message).
         /// </summary>
-        private static ChatMessage[] BuildMessages(string prompt)
+        private static ChatMessage[] BuildMessages(LLMRequest request)
         {
-            const string MARKER = "=== CURRENT INPUT ===";
-            int markerIdx = prompt.IndexOf(MARKER, StringComparison.Ordinal);
+            var messages = new List<ChatMessage>();
 
-            if (markerIdx >= 0)
-            {
-                string systemPart = prompt.Substring(0, markerIdx).TrimEnd();
-                string userPart   = prompt.Substring(markerIdx + MARKER.Length).TrimStart();
-                return new[]
-                {
-                    new ChatMessage { role = "system", content = systemPart },
-                    new ChatMessage { role = "user",   content = userPart   }
-                };
-            }
+            if (!string.IsNullOrEmpty(request.systemContent))
+                messages.Add(new ChatMessage { role = "system", content = request.systemContent });
 
-            // No marker — full prompt is instructions (e.g. action classification).
-            return new[]
-            {
-                new ChatMessage { role = "system", content = prompt              },
-                new ChatMessage { role = "user",   content = "Respond with JSON." }
-            };
+            if (request.history != null)
+                foreach (var msg in request.history)
+                    messages.Add(new ChatMessage { role = msg.role, content = msg.content });
+
+            if (!string.IsNullOrEmpty(request.userContent))
+                messages.Add(new ChatMessage { role = "user", content = request.userContent });
+
+            return messages.ToArray();
         }
 
         /// <summary>Aborts any in-progress request. Called by NPCManager on player interruption.</summary>

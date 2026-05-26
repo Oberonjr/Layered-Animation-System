@@ -26,6 +26,8 @@ public class IKLookAt : MonoBehaviour
     [Space(10)]
     [SerializeField] private float rotationSpeed;
 
+    [Header("Testing")] 
+    [SerializeField] private bool perfromTest;
     [SerializeField] private Transform testTarget;
 
     private bool isTorsoClamped;
@@ -34,7 +36,10 @@ public class IKLookAt : MonoBehaviour
 
     private void Update()
     {
-        LookAtContinuous(testTarget);
+        if (perfromTest)
+        {
+            LookAtContinuous(testTarget);
+        }
 
         //transform.position = Vector3.MoveTowards(transform.position, torsoBone.forward * 100, Time.deltaTime);
     }
@@ -55,7 +60,16 @@ public class IKLookAt : MonoBehaviour
     
     public void LookAtContinuous(Transform lookAtTarget)
     {
-        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
+        Quaternion angle;
+        try
+        {
+            angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
+        }
+        catch (Exception e)
+        {
+            
+            return;
+        }
 
         if (isHeadClamped && isTorsoClamped)
             legBehaviour.RotateTowards(angle.eulerAngles);

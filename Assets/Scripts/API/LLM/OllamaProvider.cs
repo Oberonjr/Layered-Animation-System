@@ -94,11 +94,13 @@ namespace LAS
         }
 
         /// <summary>
-        /// Streams a generation request to Ollama's /api/generate endpoint.
+        /// Streams a chat request to Ollama's /api/chat endpoint.
+        /// Uses the structured message format (system → history → user) so the local model's
+        /// KV cache can reuse the system prompt tokens across turns in the same session.
         /// Accumulates all response tokens and calls onComplete with the full string.
         /// If Interrupt() is called mid-stream the request is aborted and onComplete is not called.
         /// </summary>
-        public override IEnumerator SendRequest(string prompt, LLMGenerationOptions options, Action<string> onComplete)
+        public override IEnumerator SendRequest(LLMRequest request, LLMGenerationOptions options, Action<string> onComplete)
         {
             if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(EffectiveModel))
             {
@@ -106,23 +108,23 @@ namespace LAS
                 yield break;
             }
 
-            var requestData = new OllamaRequest
+            var requestData = new OllamaChatRequest
             {
-                model = EffectiveModel,
-                prompt = prompt,
-                stream = true,
-                options = new OllamaOptions
+                model    = EffectiveModel,
+                messages = BuildMessages(request),
+                stream   = true,
+                options  = new OllamaOptions
                 {
-                    temperature  = options.temperature,
-                    top_p        = options.topP,
-                    top_k        = options.topK,
-                    num_predict  = options.maxTokens,
+                    temperature    = options.temperature,
+                    top_p          = options.topP,
+                    top_k          = options.topK,
+                    num_predict    = options.maxTokens,
                     repeat_penalty = options.repeatPenalty
                 }
             };
 
             string json = JsonUtility.ToJson(requestData);
-            string url  = baseUrl + "/api/generate";
+            string url  = baseUrl + "/api/chat";
 
             var www = new UnityWebRequest(url, "POST");
             _activeRequest = www;
@@ -172,6 +174,27 @@ namespace LAS
             _activeRequest = null;
         }
 
+        /// <summary>
+        /// Builds the Ollama message array from an LLMRequest.
+        /// System content → role "system". History passes through. User content → role "user".
+        /// </summary>
+        private static OllamaMessage[] BuildMessages(LLMRequest request)
+        {
+            var messages = new List<OllamaMessage>();
+
+            if (!string.IsNullOrEmpty(request.systemContent))
+                messages.Add(new OllamaMessage { role = "system", content = request.systemContent });
+
+            if (request.history != null)
+                foreach (var msg in request.history)
+                    messages.Add(new OllamaMessage { role = msg.role, content = msg.content });
+
+            if (!string.IsNullOrEmpty(request.userContent))
+                messages.Add(new OllamaMessage { role = "user", content = request.userContent });
+
+            return messages.ToArray();
+        }
+
         private static void ParseChunks(string raw, StringBuilder sb)
         {
             foreach (string line in raw.Split('\n'))
@@ -179,9 +202,9 @@ namespace LAS
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 try
                 {
-                    var sr = JsonUtility.FromJson<OllamaStreamResponse>(line);
-                    if (!string.IsNullOrEmpty(sr?.response))
-                        sb.Append(sr.response);
+                    var sr = JsonUtility.FromJson<OllamaChatStreamResponse>(line);
+                    if (!string.IsNullOrEmpty(sr?.message?.content))
+                        sb.Append(sr.message.content);
                 }
                 catch { }
             }
@@ -190,12 +213,19 @@ namespace LAS
         // ── Ollama-specific wire types (private to this provider) ────────────────
 
         [Serializable]
-        private class OllamaRequest
+        private class OllamaChatRequest
         {
-            public string model;
-            public string prompt;
-            public bool   stream;
-            public OllamaOptions options;
+            public string          model;
+            public OllamaMessage[] messages;
+            public bool            stream;
+            public OllamaOptions   options;
+        }
+
+        [Serializable]
+        private class OllamaMessage
+        {
+            public string role;
+            public string content;
         }
 
         [Serializable]
@@ -209,10 +239,10 @@ namespace LAS
         }
 
         [Serializable]
-        private class OllamaStreamResponse
+        private class OllamaChatStreamResponse
         {
-            public string response;
-            public bool   done;
+            public OllamaMessage message;
+            public bool          done;
         }
 
         [Serializable]

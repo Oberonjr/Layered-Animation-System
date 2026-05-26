@@ -90,8 +90,15 @@ namespace LAS
 
             string prompt = BuildPrompt(name, target.Type, role, scenarioContextHint, config);
 
+            var request = new LLMRequest
+            {
+                systemContent = "You generate alias lists for interactive simulation objects. Output only a JSON array of strings.",
+                history       = System.Array.Empty<LLMMessage>(),
+                userContent   = prompt
+            };
+
             string result = null;
-            yield return provider.SendRequest(prompt, config.options, r => result = r);
+            yield return provider.SendRequest(request, config.options, r => result = r);
 
             if (string.IsNullOrEmpty(result)) yield break;
 
