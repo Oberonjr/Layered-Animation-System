@@ -29,6 +29,13 @@ namespace LAS
         public abstract string ProviderDisplayName { get; }
 
         /// <summary>
+        /// Human-readable name of the model used for action classification.
+        /// Defaults to ProviderDisplayName (same model as dialogue).
+        /// Providers override this when a separate action model is configured.
+        /// </summary>
+        public virtual string ActionModelDisplayName => ProviderDisplayName;
+
+        /// <summary>
         /// Sends a structured prompt to the LLM and returns the complete accumulated response via callback.
         /// Calls onComplete(responseText) on success, or skips the call on failure or interrupt.
         /// This is a coroutine — yield return it from NPCManager.

@@ -322,6 +322,12 @@ namespace LAS {
 
             AddSystemMessage(connectionMessage);
 
+            // Log which model handles each step so split-model setups are easy to verify.
+            if (llmProvider.ActionModelDisplayName != llmProvider.ProviderDisplayName)
+                Debug.Log($"[NPCManager] Dialogue → {llmProvider.ProviderDisplayName} | Actions → {llmProvider.ActionModelDisplayName}");
+            else
+                Debug.Log($"[NPCManager] Single model for dialogue + actions: {llmProvider.ProviderDisplayName}");
+
             // ── Alias generation (background — non-blocking) ──────────────────────
             if (generateAliasesOnStartup)
             {
@@ -542,9 +548,8 @@ namespace LAS {
             NPCActionSequence actionSequence = null;
             if (!_interruptGenerationFlag && step2Raw != null)
             {
-                // Always log the raw Step 2 output — it's short (one JSON line) and is the
-                // primary diagnostic for whether the problem is LLM-side or parse/dispatch-side.
-                Debug.Log($"[Action raw] {step2Raw.Trim()}");
+                if (logLLMResponses)
+                    Debug.Log($"[Action raw] {step2Raw.Trim()}");
 
                 actionSequence = NPCResponseParser.ParseActionSequence(step2Raw);
 

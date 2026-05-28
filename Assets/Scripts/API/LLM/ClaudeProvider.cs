@@ -44,6 +44,11 @@ namespace LAS
 
         public override string ProviderDisplayName => $"Claude ({modelName})";
 
+        public override string ActionModelDisplayName =>
+            string.IsNullOrWhiteSpace(actionModelName)
+                ? ProviderDisplayName
+                : $"Claude ({actionModelName})";
+
         private string EffectiveApiKey => ApiKeyStore.GetKey(apiKeyName);
 
         // ── LLMProviderBase implementation ────────────────────────────────────────

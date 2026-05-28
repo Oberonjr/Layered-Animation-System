@@ -57,6 +57,11 @@ namespace LAS
 
         public override string ProviderDisplayName => $"{preset} ({modelName})";
 
+        public override string ActionModelDisplayName =>
+            string.IsNullOrWhiteSpace(actionModelName)
+                ? ProviderDisplayName
+                : $"{preset} ({actionModelName})";
+
         private string EffectiveBaseUrl => preset switch
         {
             ProviderPreset.OpenAI   => "https://api.openai.com/v1",

@@ -37,6 +37,11 @@ namespace LAS
 
         public override string ProviderDisplayName => "Ollama (Local)";
 
+        public override string ActionModelDisplayName =>
+            EffectiveActionModel == EffectiveModel
+                ? ProviderDisplayName
+                : $"Ollama (Local) [{EffectiveActionModel}]";
+
         /// <summary>The model used for dialogue generation.</summary>
         public string EffectiveModel =>
             (selectedModelIndex >= 0 && selectedModelIndex < availableModels.Count)
