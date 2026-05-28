@@ -44,13 +44,21 @@ namespace LAS
         /// </summary>
         public void Tick()
         {
-            if (_target != null)
+            /*if (isLookingAtTarget && _target)
             {
-                isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
-                canStartAnim = _ikLookAt.canStartAnim;
-            }
-            else
+                Debug.Log(isLookingAtTarget);
+                Clear();
+            }*/
+
+            if (!_target)
+            {
                 _ikLookAt.ClearTarget();
+                return;
+            }
+            
+            isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
+
+            //canStartAnim = _ikLookAt.canStartAnim;
         }
 
         public void EnableLegIK(bool value)

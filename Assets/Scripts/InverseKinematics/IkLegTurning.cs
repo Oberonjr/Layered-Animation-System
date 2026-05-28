@@ -84,16 +84,15 @@ namespace LAS
         {
             if (leftFoot.isGrounded && rightFoot.isGrounded)
             {
-                //EnableLegIk(true);
-                
                 this.targetRotation = targetRotation - Quaternion.LookRotation(body.forward).eulerAngles;
                 targetAngle = targetRotation;
+                //this.targetRotation = targetRotation;
                 
                 if(this.targetRotation.y > 180)
                     this.targetRotation -= new Vector3(0, 360, 0);
 
+                Debug.Log("Leg rotation: " + targetRotation);
                 Debug.Log("Starting leg movement towards " + this.targetRotation);
-                Debug.Log(targetAngle);
 
                 bodyRotationValue = 0;
                 
