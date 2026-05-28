@@ -20,6 +20,8 @@ MonoBehaviour:
   requiresSecondaryTarget: 0
   targetDescription: The name of the NPC to take the objecty from. Must be one of
     the valid target names listed below.
-  secondaryTargetDescription:
+  secondaryTargetDescription: 
   validTargetTypes: 0000000001000000
+  requiresApproach: 1
+  approachRangeType: 1
   editorColor: {r: 0.37022638, g: 0.33490568, b: 1, a: 1}

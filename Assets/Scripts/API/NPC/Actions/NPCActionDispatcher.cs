@@ -159,8 +159,17 @@ namespace LAS
                       $"{(primaryTarget != null ? $" → {primaryTarget.name}" : "")}");
 
             var state = actionDef.MakeState(primaryTarget, secondaryTarget);
-            if (state != null)
+            if (state == null) return;
+
+            if (actionDef.requiresApproach && primaryTarget != null)
+            {
+                behaviour.FSM.Interrupt(new GoToState(primaryTarget, actionDef.approachRangeType));
+                behaviour.FSM.Enqueue(state);
+            }
+            else
+            {
                 behaviour.FSM.Interrupt(state);
+            }
         }
 
         /// <summary>
@@ -210,6 +219,12 @@ namespace LAS
                     continue;
                 }
 
+                if (def.requiresApproach && primary != null)
+                {
+                    Debug.Log($"[Dispatcher] Prepending GoToState({def.approachRangeType}) for {step.action_key} → '{primary.name}'");
+                    behaviour.FSM.Enqueue(new GoToState(primary, def.approachRangeType));
+                }
+
                 behaviour.FSM.Enqueue(def.MakeState(primary, secondary));
                 queued++;
                 string label = string.IsNullOrEmpty(step.action_target)
@@ -241,8 +256,17 @@ namespace LAS
             }
 
             var state = actionDef.MakeState(primaryTarget, secondaryTarget);
-            if (state != null)
+            if (state == null) return;
+
+            if (actionDef.requiresApproach && primaryTarget != null)
+            {
+                behaviour.FSM.Interrupt(new GoToState(primaryTarget, actionDef.approachRangeType));
+                behaviour.FSM.Enqueue(state);
+            }
+            else
+            {
                 behaviour.FSM.Interrupt(state);
+            }
         }
 
         /// <summary>

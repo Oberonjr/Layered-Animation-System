@@ -47,6 +47,16 @@ namespace LAS
         [Tooltip("Which target types can this action use? Empty array = any type is valid. Use this to restrict actions to specific target types (e.g., only NPCs, only InteractableObjects).")]
         public TargetType[] validTargetTypes = new TargetType[0];
 
+        [Header("Approach")]
+        [Tooltip("If true, the dispatcher prepends a GoToState before this action so the NPC walks within range of the primary target first. " +
+                 "Enable for actions that require proximity: PICK_UP, PUT_DOWN, GRAB_FROM, HAND_TO_NPC. " +
+                 "Leave false for instant or self-targeting actions: LOOK_AT, GO_TO, NONE.")]
+        public bool requiresApproach = false;
+
+        [Tooltip("Which arrival distance to use when approaching the target. " +
+                 "Pickup = ctx.PickupRange, HandOver = ctx.HandOverRange, Default = ctx.ArrivalDistance.")]
+        public ApproachRange approachRangeType = ApproachRange.Pickup;
+
         [Header("Editor Visual")]
         [Tooltip("Color for this action in inspector buttons and UI. Helps visually distinguish different actions during testing.")]
         public Color editorColor = Color.white;

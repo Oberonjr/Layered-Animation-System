@@ -20,6 +20,8 @@ MonoBehaviour:
   requiresSecondaryTarget: 0
   targetDescription: The name of the object to pick up. Must be one of the valid
     target names listed below.
-  secondaryTargetDescription:
+  secondaryTargetDescription: 
   validTargetTypes: 03000000
+  requiresApproach: 1
+  approachRangeType: 1
   editorColor: {r: 0.09291565, g: 0.42349967, b: 0.6792453, a: 1}

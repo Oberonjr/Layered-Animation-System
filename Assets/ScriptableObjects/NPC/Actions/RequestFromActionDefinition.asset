@@ -21,6 +21,8 @@ MonoBehaviour:
   requiresSecondaryTarget: 0
   targetDescription: The name of the NPC or player to request the object from. Must
     be one of the valid target names listed below.
-  secondaryTargetDescription:
+  secondaryTargetDescription: 
   validTargetTypes: 0000000001000000
+  requiresApproach: 1
+  approachRangeType: 2
   editorColor: {r: 0.8073843, g: 0.06007475, b: 0.8490566, a: 1}

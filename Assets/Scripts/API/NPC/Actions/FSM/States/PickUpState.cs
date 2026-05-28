@@ -1,16 +1,14 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace LAS
 {
     /// <summary>
-    /// Navigates to an item and picks it up.
-    /// Phases: Navigating → complete (grab happens on arrival before returning true).
+    /// Triggers the IK grab animation on the target item.
+    /// Expects GoToState to have already navigated the NPC within PickupRange.
     /// </summary>
     public class PickUpState : NPCActionState
     {
         private readonly Transform _target;
-        private float _startTime;
 
         public PickUpState(Transform target) : base(null) => _target = target;
         public PickUpState(NPCActionDefinition def) : base(def) { }
@@ -27,78 +25,21 @@ namespace LAS
                 return;
             }
 
-            ctx.IKController.SetLookAtTarget(_target);
-            ctx.Agent.stoppingDistance = 0f;
-            ctx.Agent.SetDestination(_target.position);
-            
-            Debug.Log(_target.name);
-            
             ctx.IKController.SetGrabTarget(_target);
             ctx.IKController.Grab();
-            
-            _startTime = Time.time;
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx)
         {
-            /*if (_target == null || ctx.IsHoldingObject) return true;
-
-            if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
-            {
-                Debug.LogWarning($"[{ctx.NPCName}] PickUp: timed out navigating to '{_target.name}'.");
-                return true;
-            }
-
-            if (ctx.Agent.pathPending) return false;
-
-            if (ctx.Agent.pathStatus == NavMeshPathStatus.PathInvalid)
-            {
-                Debug.LogWarning($"[{ctx.NPCName}] PickUp: no valid path to '{_target.name}'.");
-                return true;
-            }
-
-            if (ctx.Agent.remainingDistance <= ctx.PickupRange)
-            {
-                //ctx.IKController.SetGrabTarget(_target);
-                //ctx.IKController.Grab();
-                //Grab(ctx);
-                return true;
-            }
-
-            return false;*/
-
             if (ctx.IKController.hasGrabbed)
             {
-                Grab(ctx);
-                
+                ctx.HeldObject = _target.gameObject;
                 return true;
             }
 
             return false;
         }
 
-        public override void ExitState(NPCBehaviourContext ctx)
-        {
-            if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
-        }
-
-        private void Grab(NPCBehaviourContext ctx)
-        {
-            var obj = _target.gameObject;
-            ctx.HeldObject = obj;
-
-            var rb = obj.GetComponent<Rigidbody>();
-            if (rb != null) rb.isKinematic = true;
-
-            var interactable = obj.GetComponent<InteractableItem>();
-            if (interactable != null)
-            {
-                interactable.isHeld          = true;
-                interactable.heldByNPC       = ctx.NPCName;
-                interactable.currentLocation = "";
-            }
-
-            ctx.FirePickedUp(obj);
-        }
+        public override void ExitState(NPCBehaviourContext ctx) { }
     }
 }

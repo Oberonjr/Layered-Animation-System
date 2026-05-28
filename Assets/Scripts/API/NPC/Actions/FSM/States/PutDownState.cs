@@ -1,17 +1,16 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace LAS
 {
     /// <summary>
-    /// Walks to a LocationTarget and places the held item in the matching ItemSlot.
+    /// Places the held item into the matching ItemSlot at a LocationTarget.
+    /// Expects GoToState to have already navigated the NPC within PickupRange.
     /// </summary>
     public class PutDownState : NPCActionState
     {
         private readonly Transform _target;
         private LocationTarget _location;
         private ItemSlot _slot;
-        private float _startTime;
         private bool _ready;
 
         public PutDownState(Transform target) : base(null) => _target = target;
@@ -50,10 +49,6 @@ namespace LAS
                 return;
             }
 
-            ctx.IKController.SetLookAtTarget(_target);
-            ctx.Agent.stoppingDistance = 0f;
-            ctx.Agent.SetDestination(_target.position);
-            _startTime = Time.time;
             _ready = true;
         }
 
@@ -62,30 +57,11 @@ namespace LAS
             if (!_ready || _location == null || _slot == null) return true;
             if (!ctx.IsHoldingObject) return true;
 
-            if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
-            {
-                Debug.LogWarning($"[{ctx.NPCName}] PutDown: timed out.");
-                return true;
-            }
-
-            if (ctx.Agent.pathPending) return false;
-
-            if (ctx.Agent.pathStatus == NavMeshPathStatus.PathInvalid)
-                return true;
-
-            if (ctx.Agent.remainingDistance <= ctx.PickupRange)
-            {
-                Place(ctx);
-                return true;
-            }
-
-            return false;
+            Place(ctx);
+            return true;
         }
 
-        public override void ExitState(NPCBehaviourContext ctx)
-        {
-            if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
-        }
+        public override void ExitState(NPCBehaviourContext ctx) { }
 
         private void Place(NPCBehaviourContext ctx)
         {

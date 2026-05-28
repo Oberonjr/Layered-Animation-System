@@ -19,7 +19,9 @@ MonoBehaviour:
     holding an object.
   requiresTarget: 0
   requiresSecondaryTarget: 0
-  targetDescription:
-  secondaryTargetDescription:
+  targetDescription: 
+  secondaryTargetDescription: 
   validTargetTypes: 01000000
+  requiresApproach: 1
+  approachRangeType: 2
   editorColor: {r: 0.8867924, g: 0.06274474, b: 0.7012529, a: 1}

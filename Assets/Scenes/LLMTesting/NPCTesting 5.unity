@@ -439,6 +439,10 @@ PrefabInstance:
       value: 0.931
       objectReference: {fileID: 0}
     - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
+      propertyPath: pickupRange
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: idlePosition
       value: 
       objectReference: {fileID: 1525387255}
@@ -447,8 +451,12 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 120725382}
     - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
+      propertyPath: handOverRange
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: arrivalDistance
-      value: 0.75
+      value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 5529717631758298660, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: m_Enabled
@@ -3858,9 +3866,17 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1387029659}
     - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
+      propertyPath: pickupRange
+      value: 0.3
+      objectReference: {fileID: 0}
+    - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
       propertyPath: idlePosition
       value: 
       objectReference: {fileID: 43034871}
+    - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
+      propertyPath: handOverRange
+      value: 0.3
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1963971474002294112, guid: e09b71a65619f734a94145573285bc09, type: 3}
@@ -4589,7 +4605,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.033333335
+  m_VoxelSize: 0.016666668
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: f88889d63356ac54cbf2c40df4aad7a5, type: 2}
   m_BuildHeightMesh: 0
@@ -4662,6 +4678,10 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
+      propertyPath: enableAutoConversation
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcFollowUpProbability
       value: 1
       objectReference: {fileID: 0}
@@ -4687,7 +4707,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: playerIdleTimeBeforePrompt
-      value: 7
+      value: 70000
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: questionResponseProbability
@@ -4704,7 +4724,7 @@ PrefabInstance:
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: llmProvider
       value: 
-      objectReference: {fileID: 11400000, guid: f354b8bc7c2f8184999e5d61467210ed, type: 2}
+      objectReference: {fileID: 11400000, guid: b2bb2f81ff7956c49bafd514d9bbf8f2, type: 2}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: logLLMResponses
       value: 1

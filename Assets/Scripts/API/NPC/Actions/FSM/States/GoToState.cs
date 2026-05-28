@@ -6,27 +6,38 @@ namespace LAS
 {
     /// <summary>
     /// Navigates the NPC to a target transform using NavMeshAgent.
-    /// Completes on arrival, path failure, or timeout.
+    /// Completes immediately if already within range, or on arrival, path failure, or timeout.
+    /// When the target has a NavMeshAgent (another NPC), combined agent radii are added to the
+    /// stopping range to prevent body-pushing.
     /// </summary>
     public class GoToState : NPCActionState
     {
         private readonly Transform _target;
-        private readonly float _rangeOverride; // -1 = use ctx.ArrivalDistance
-        
+        private readonly float _rangeOverride;   // used when _rangeType == Default
+        private readonly ApproachRange _rangeType;
+
         private float _startTime;
         private float _range;
         private bool _ready;
+        private bool _alreadyInRange;
+        private bool _walkStarted;
 
-        private float blendDuration = 0.3f;
-        private bool isBlending;
-        
-        private bool isDestinationSet = false;
+        private const float BlendDuration = 0.3f;
+        private bool _isBlending;
 
 
         public GoToState(Transform target, float rangeOverride = -1f) : base(null)
         {
             _target        = target;
             _rangeOverride = rangeOverride;
+            _rangeType     = ApproachRange.Default;
+        }
+
+        public GoToState(Transform target, ApproachRange rangeType) : base(null)
+        {
+            _target        = target;
+            _rangeOverride = -1f;
+            _rangeType     = rangeType;
         }
 
         public GoToState(NPCActionDefinition def) : base(def) { }
@@ -42,40 +53,45 @@ namespace LAS
                 return;
             }
 
-            _range = _rangeOverride > 0f ? _rangeOverride : ctx.ArrivalDistance;
+            _range = _rangeType switch
+            {
+                ApproachRange.Pickup   => ctx.PickupRange,
+                ApproachRange.HandOver => ctx.HandOverRange,
+                _                      => _rangeOverride > 0f ? _rangeOverride : ctx.ArrivalDistance
+            };
+
+            // Add combined agent radii when approaching another NPC to avoid body-pushing.
+            var targetAgent = _target.GetComponent<NavMeshAgent>();
+            if (targetAgent != null)
+                _range += ctx.Agent.radius + targetAgent.radius;
+
+            float dist = Vector3.Distance(ctx.Agent.transform.position, _target.position);
+            if (dist <= _range)
+            {
+                Debug.Log($"[{ctx.NPCName}] GoTo: already within range of '{_target.name}' (dist={dist:F2}, range={_range:F2}) — skipping movement.");
+                _alreadyInRange = true;
+                return;
+            }
+
             ctx.IKController.SetLookAtTarget(_target);
-            ctx.Agent.stoppingDistance = 0f;
+            ctx.Agent.stoppingDistance = _range;
+            ctx.Agent.SetDestination(_target.position);
             _startTime = Time.time;
             _ready = true;
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx)
         {
+            if (_alreadyInRange) return true;
             if (_target == null || !_ready) return true;
 
-            // Start walk animation to blend between turning and walking
-            if (ctx.IKController.canStartAnim)
+            if (!_walkStarted)
             {
                 ctx.IKController.EnableLegIK(false);
                 BlendWalkAnim(0, 1, ctx);
+                _walkStarted = true;
             }
-            
-            if(!ctx.IKController.isLookingAtTarget)
-                return false;
-            
-            // Wait until NPC is looking at target before starting to move
-            if (ctx.IKController.isLookingAtTarget && !isDestinationSet)
-            {
-                if (!ctx.IKController.canStartAnim)
-                {
-                    ctx.IKController.EnableLegIK(false);
-                    BlendWalkAnim(0, 1, ctx);
-                }
-                
-                ctx.Agent.SetDestination(_target.position);
-                isDestinationSet = true;
-            }
-            
+
             if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
             {
                 Debug.LogWarning($"[{ctx.NPCName}] GoTo: timed out navigating to '{_target.name}'.");
@@ -101,27 +117,28 @@ namespace LAS
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
+            if (_alreadyInRange) return;
+
             ctx.IKController.EnableLegIK(true);
             BlendWalkAnim(1, 0, ctx);
-            
-            Debug.Log("Stop walking");
+
+            Debug.Log($"[{ctx.NPCName}] GoTo: stopped walking.");
             if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
         }
-        
+
         private void BlendWalkAnim(float start, float end, NPCBehaviourContext ctx)
         {
-            if (isBlending || Mathf.Abs(ctx.Animator.GetFloat("Blend") - start) > 0.1f)
+            if (_isBlending || Mathf.Abs(ctx.Animator.GetFloat("Blend") - start) > 0.1f)
                 return;
 
-            isBlending = true;
-            
-            DOVirtual.Float(start, end, blendDuration, value =>
+            _isBlending = true;
+
+            DOVirtual.Float(start, end, BlendDuration, value =>
             {
                 ctx.Animator.SetFloat("Blend", value);
-                //Debug.Log(ctx.Animator.GetFloat("Blend") + " | " + value + " | " + end);
             }).OnComplete(() =>
             {
-                isBlending = false;
+                _isBlending = false;
             });
         }
     }
