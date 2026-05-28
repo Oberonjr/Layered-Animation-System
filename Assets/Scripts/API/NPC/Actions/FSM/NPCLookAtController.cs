@@ -13,6 +13,9 @@ namespace LAS
     {
         private readonly IKLookAt _ikLookAt;
         private Transform _target;
+        
+        public bool isLookingAtTarget { get; private set; }
+        public bool canStartAnim { get; private set; }
 
         public Transform Target => _target;
 
@@ -25,6 +28,8 @@ namespace LAS
         public void SetTarget(Transform target)
         {
             _target = target;
+            
+            //_ikLookAt.LookAt(_target);
         }
 
         /// <summary>Stop tracking; head returns to neutral on next Tick.</summary>
@@ -39,10 +44,26 @@ namespace LAS
         /// </summary>
         public void Tick()
         {
-            if (_target != null)
-                _ikLookAt.LookAt(_target);
-            else
+            /*if (isLookingAtTarget && _target)
+            {
+                Debug.Log(isLookingAtTarget);
+                Clear();
+            }*/
+
+            if (!_target)
+            {
                 _ikLookAt.ClearTarget();
+                return;
+            }
+            
+            isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
+
+            //canStartAnim = _ikLookAt.canStartAnim;
+        }
+
+        public void EnableLegIK(bool value)
+        {
+            _ikLookAt.EnableLegIK(value);
         }
     }
 }

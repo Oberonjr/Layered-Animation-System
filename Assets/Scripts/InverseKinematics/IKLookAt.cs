@@ -1,18 +1,20 @@
 using System;
+using System.Collections;
 using LAS;
 using UnityEngine;
 using UnityEngine.UIElements;
+using DG.Tweening;
 
 public class IKLookAt : MonoBehaviour
 {
-    [SerializeField] private Transform bodyTransform;
+    [SerializeField] private Transform root;
     
     [Header("Head")]
     [SerializeField] private Transform headBone;
     [SerializeField] private float headPitchLimits;
     [SerializeField] private float headYawLimits;
     [SerializeField] private float headRollLimits;
-    private bool isHeadClamped;
+    [SerializeField] private AnimationCurve smoothRotationCurve;
 
     [Header("Torso")] 
     [SerializeField] private Transform torsoBone;
@@ -23,57 +25,95 @@ public class IKLookAt : MonoBehaviour
     [Header("Legs")]
     [SerializeField] private IkLegTurning legBehaviour;
     
-    [Space(10)]
+    [Header("Rotation parameters")]
     [SerializeField] private float rotationSpeed;
+    [SerializeField][Range(0, 1)] private float enableLegsThreshold;
 
-    [Header("Testing")] 
-    [SerializeField] private bool perfromTest;
     [SerializeField] private Transform testTarget;
 
-    private bool isTorsoClamped;
-
+    [HideInInspector] public bool canStartAnim;
+    [HideInInspector] public bool isLookingAtTarget;
+    
     private Vector3 targetRotation;
+    
+    private bool isHeadClamped;
+    private bool isTorsoClamped;
+    private bool isClamped;
 
-    private void Update()
+    private float headCoefficient;
+    private float torsoCoefficient;
+
+    private void Start()
     {
-        if (perfromTest)
-        {
-            LookAtContinuous(testTarget);
-        }
+        float totalClamp = headYawLimits + torsoYawLimits;
 
-        //transform.position = Vector3.MoveTowards(transform.position, torsoBone.forward * 100, Time.deltaTime);
-    }
-
-    private void LateUpdate()
-    {
-        RotateHead(targetRotation);
-        RotateTorso(targetRotation);
-        
+        // Calculate how much each body part needs to rotate to achieve a combined target rotation
+        headCoefficient = headYawLimits / totalClamp;
+        torsoCoefficient = torsoYawLimits / totalClamp;
     }
 
     public void LookAt(Transform lookAtTarget)
     {
+        float totalClamp = headYawLimits + torsoYawLimits;
+
+        // Calculate how much each body part needs to rotate to achieve a combined target rotation
+        headCoefficient = headYawLimits / totalClamp;
+        torsoCoefficient = torsoYawLimits / totalClamp;
+        
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
-        targetRotation = angle.eulerAngles - Quaternion.LookRotation(headBone.forward).eulerAngles;
+        targetRotation = angle.eulerAngles;
+        
+        Vector3 targetAngle = targetRotation - (root.eulerAngles + Min(headBone.localEulerAngles) + Min(torsoBone.localEulerAngles));
+        
+        //Debug.Log("Angle: " + targetRotation + " | Head: " + root.eulerAngles + headBone.localEulerAngles + torsoBone.localEulerAngles + " | Target: " + targetAngle);
+        
+        if (IsClamped(headBone.localEulerAngles.y + targetAngle.y * headCoefficient, headYawLimits)
+            && IsClamped(torsoBone.localEulerAngles.y + targetAngle.y * torsoCoefficient, torsoYawLimits))
+        {
+            isClamped = true;
+        }
+        
+        StartCoroutine(RotateUpperBodyCo(targetAngle));
+        
+        if(isClamped)
+            legBehaviour.RotateTowards(targetRotation);
+    }
+
+    Vector3 Min(Vector3 a)
+    {
+        if (a.y > 180)
+            return a - new Vector3(0, 360, 0);
+        
+        return a;
+    }
+
+    public void ClearTarget()
+    {
+        targetRotation = Quaternion.LookRotation(transform.forward).eulerAngles;
     }
     
-    public void LookAtContinuous(Transform lookAtTarget)
+    public bool LookAtContinuous(Transform lookAtTarget)
     {
-        Quaternion angle;
-        try
+        Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
+
+        canStartAnim = legBehaviour.canStartAnim;
+        
+        if (!legBehaviour.isRotating)
         {
-            angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
+            if (Mathf.Abs(angle.eulerAngles.y - headBone.eulerAngles.y) < rotationSpeed * Time.deltaTime)
+            {
+                isLookingAtTarget = true;
+                return isLookingAtTarget;
+            }
         }
-        catch (Exception e)
-        {
-            
-            return;
-        }
+        
+        if(isLookingAtTarget)
+            isLookingAtTarget = false;
 
         if (isHeadClamped && isTorsoClamped)
             legBehaviour.RotateTowards(angle.eulerAngles);
-        
+
         angle.eulerAngles -= Quaternion.LookRotation(headBone.forward).eulerAngles;
 
         Vector3 maxRotation = GetDirectionalNormalized(angle.eulerAngles) * (rotationSpeed * Time.deltaTime);
@@ -82,28 +122,29 @@ public class IKLookAt : MonoBehaviour
             targetRotation = angle.eulerAngles;
         else
             targetRotation = maxRotation;
+        
+        RotateHead(targetRotation);
+        RotateTorso(targetRotation);
+        
+        return false;
     }
 
-    public void ClearTarget()
-    {
-        //TODO: Implement this
-    }
-    
     private void RotateHead(Vector3 targetAngle)
     {
-        Vector3 angle = targetAngle * 0.7f;
+        Vector3 angle = targetAngle * headCoefficient;
         
         isHeadClamped = IsClamped(headBone.localEulerAngles.y + angle.y, headYawLimits);
 
         if (isHeadClamped)
             return;
-        
-        headBone.localEulerAngles = ClampRotation(headBone.localEulerAngles + angle, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
-    }
 
+        headBone.localEulerAngles = ClampRotation(headBone.localEulerAngles + angle,
+            new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+    }
+    
     private void RotateTorso(Vector3 targetAngle)
     {
-        Vector3 angle = targetAngle * 0.3f;
+        Vector3 angle = targetAngle * torsoCoefficient;
         
         isTorsoClamped = IsClamped(torsoBone.localEulerAngles.y + angle.y, torsoYawLimits);
 
@@ -113,6 +154,31 @@ public class IKLookAt : MonoBehaviour
         torsoBone.localEulerAngles = ClampRotation(torsoBone.localEulerAngles + angle, new Vector3(torsoPitchLimits, torsoYawLimits, torsoRollLimits));
     }
 
+    private IEnumerator RotateUpperBodyCo(Vector3 targetAngle)
+    {
+        float timeElapsed = 0;
+        Vector3 headStartRotation = headBone.localEulerAngles;
+        Vector3 torsoStartRotation = torsoBone.localEulerAngles;
+        
+        // Keep looping until the end of the headRotationCurve is reached
+        while (timeElapsed < 1)
+        {
+            Vector3 angle = targetAngle * smoothRotationCurve.Evaluate(timeElapsed);
+
+            headBone.localEulerAngles = ClampRotation(headStartRotation + angle * headCoefficient, new Vector3(headPitchLimits, headYawLimits, headRollLimits));
+            torsoBone.localEulerAngles = ClampRotation(torsoStartRotation + angle * torsoCoefficient, new Vector3(torsoPitchLimits, torsoYawLimits, torsoRollLimits));
+            
+            timeElapsed += Time.deltaTime * (rotationSpeed / 360);
+            
+            yield return null;
+        }
+        
+        headBone.localEulerAngles = headStartRotation + targetAngle * headCoefficient;
+        torsoBone.localEulerAngles = torsoStartRotation + targetAngle * torsoCoefficient;
+        
+        Debug.Log("Finished look at: " + headBone.eulerAngles);
+    }
+    
     private Vector3 ClampRotation(Vector3 vectorToClamp, Vector3 clampLimits)
     {
         return new Vector3(
@@ -157,8 +223,8 @@ public class IKLookAt : MonoBehaviour
         return new Vector3(normalized.x * x, normalized.y * y, normalized.z * z);
     }
 
-    private void OnAnimatorIK(int layerIndex)
+    public void EnableLegIK(bool value)
     {
-
+        legBehaviour.EnableLegIk(value);
     }
 }

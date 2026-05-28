@@ -22,7 +22,6 @@ namespace LAS
             if (ctx.IdlePosition != null)
             {
                 ctx.LookAt.SetTarget(ctx.IdlePosition);
-                ctx.Animator?.SetTrigger("StartWalking");
                 ctx.Agent.stoppingDistance = 0f;
                 ctx.Agent.SetDestination(ctx.IdlePosition.position);
                 _startTime  = Time.time;
@@ -55,7 +54,6 @@ namespace LAS
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
-            ctx.Animator?.SetTrigger("StopWalking");
             if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
         }
 
