@@ -43,8 +43,15 @@ namespace LAS
             }
 
             _range = _rangeOverride > 0f ? _rangeOverride : ctx.ArrivalDistance;
+
+            // Walking to another NPC: stop at the edge of both agents' radii so the
+            // walking NPC doesn't push into the target instead of beside them.
+            var targetAgent = _target.GetComponent<NavMeshAgent>();
+            if (targetAgent != null)
+                _range += ctx.Agent.radius + targetAgent.radius;
+
             ctx.LookAt.SetTarget(_target);
-            ctx.Agent.stoppingDistance = 0f;
+            ctx.Agent.stoppingDistance = _range;
             _startTime = Time.time;
             _ready = true;
         }
