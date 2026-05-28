@@ -69,7 +69,8 @@ namespace LAS
 
             if (ctx.IKController.hasGrabbed)
             {
-                ctx.HeldObject = _target.gameObject;
+                Grab(ctx);
+                
                 return true;
             }
 
@@ -85,13 +86,6 @@ namespace LAS
         {
             var obj = _target.gameObject;
             ctx.HeldObject = obj;
-
-            if (ctx.ItemSlot != null)
-            {
-                obj.transform.SetParent(ctx.ItemSlot);
-                obj.transform.localPosition = Vector3.zero;
-                obj.transform.localRotation = Quaternion.identity;
-            }
 
             var rb = obj.GetComponent<Rigidbody>();
             if (rb != null) rb.isKinematic = true;

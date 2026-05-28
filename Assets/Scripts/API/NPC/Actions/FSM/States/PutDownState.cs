@@ -95,6 +95,8 @@ namespace LAS
             var placing = ctx.HeldObject;
             ctx.HeldObject = null;
 
+            ctx.IKController.PutDown();
+            
             if (_slot.TryPlaceItem(item))
             {
                 _location.AddItem(item.TargetName);
