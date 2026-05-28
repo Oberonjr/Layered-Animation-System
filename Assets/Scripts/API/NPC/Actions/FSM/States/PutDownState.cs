@@ -50,7 +50,7 @@ namespace LAS
                 return;
             }
 
-            ctx.LookAt.SetTarget(_target);
+            ctx.IKController.SetLookAtTarget(_target);
             ctx.Agent.stoppingDistance = 0f;
             ctx.Agent.SetDestination(_target.position);
             _startTime = Time.time;

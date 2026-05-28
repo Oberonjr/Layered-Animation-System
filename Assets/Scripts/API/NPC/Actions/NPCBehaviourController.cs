@@ -17,6 +17,9 @@ namespace LAS
     {
         [Tooltip("IK script that controls where the NPC looks. Auto-assigned if left empty.")]
         [SerializeField] private IKLookAt lookAtScript;
+
+        [SerializeField] private IKController ikController;
+        
         [Tooltip("Animator component driving the NPC's animations.")]
         [SerializeField] private Animator animator;
 
@@ -87,7 +90,7 @@ namespace LAS
                 host:               this,
                 agent:              agent,
                 controller:         controller,
-                ikLookAt:           lookAtScript,
+                ikController:       ikController,
                 animator:           animator,
                 itemSlot:           itemSlot,
                 idlePosition:       idlePosition,
@@ -110,7 +113,6 @@ namespace LAS
 
         void Update()
         {
-            Context.LookAt.Tick();
             FSM.Update();
         }
 

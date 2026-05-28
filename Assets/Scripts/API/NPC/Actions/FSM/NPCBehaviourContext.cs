@@ -32,7 +32,7 @@ namespace LAS
         public readonly NavMeshAgent Agent;
         public readonly Animator Animator;
         public readonly NPCController Controller;
-        public readonly NPCLookAtController LookAt;
+        public readonly IKController IKController;
 
         /// <summary>Transform where held objects are parented (e.g. right hand bone).</summary>
         public readonly Transform ItemSlot;
@@ -92,7 +92,7 @@ namespace LAS
             MonoBehaviour host,
             NavMeshAgent agent,
             NPCController controller,
-            IKLookAt ikLookAt,
+            IKController ikController,
             Animator animator,
             Transform itemSlot,
             Transform idlePosition,
@@ -106,7 +106,7 @@ namespace LAS
             Host               = host;
             Agent              = agent;
             Controller         = controller;
-            LookAt             = new NPCLookAtController(ikLookAt);
+            IKController       = ikController;
             Animator           = animator;
             ItemSlot           = itemSlot;
             IdlePosition       = idlePosition;

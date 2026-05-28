@@ -271,8 +271,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9158071630870901724}
+  - component: {fileID: 9083517004267701695}
   - component: {fileID: 3774178358496099989}
   - component: {fileID: 5082986251332801678}
+  - component: {fileID: 5354107806019148378}
   m_Layer: 0
   m_Name: Animated_NPC
   m_TagString: Untagged
@@ -299,6 +301,20 @@ Transform:
   - {fileID: 7938871560477085187}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9083517004267701695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2394955950931566279}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5129893af0e998b43b7c860ad700dc31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.IKController
+  lookAt: {fileID: 3774178358496099989}
+  grab: {fileID: 5354107806019148378}
 --- !u!114 &3774178358496099989
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -311,18 +327,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a850f1b12f8e51e4db6938ddb8ea4679, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::IKLookAt
-  bodyTransform: {fileID: 4045320223463959566}
+  root: {fileID: 0}
   headBone: {fileID: 1323465335270158571}
   headPitchLimits: 40
   headYawLimits: 70
   headRollLimits: 20
+  smoothRotationCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   torsoBone: {fileID: 2643067454412661118}
   torsoPitchLimits: 15
   torsoYawLimits: 30
   torsoRollLimits: 15
   legBehaviour: {fileID: 5082986251332801678}
   rotationSpeed: 360
+  enableLegsThreshold: 0
   testTarget: {fileID: 0}
+  canStartAnim: 0
+  isLookingAtTarget: 0
 --- !u!114 &5082986251332801678
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -395,10 +420,34 @@ MonoBehaviour:
     m_PostInfinity: 2
     m_RotationOrder: 4
   maxFootHeight: 0.1
+  walkBlendThreshold: 0
+  weightTweenDuration: 0
   leftPivot: {fileID: 6710337156898351194}
+  leftConstraint: {fileID: 0}
   rightPivot: {fileID: 8415140524144446855}
+  rightConstraint: {fileID: 0}
+  root: {fileID: 0}
   body: {fileID: 4045320223463959566}
   bodyIKPivot: {fileID: 7938871560477085187}
+  canStartAnim: 0
+  isRotating: 0
+--- !u!114 &5354107806019148378
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2394955950931566279}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4aff4b2bd114d4a44b0fb4983f4eb261, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.IKGrab
+  constraint: {fileID: 0}
+  IKTarget: {fileID: 0}
+  wrist: {fileID: 0}
+  blendSpeed: 0.5
+  grabTarget: {fileID: 0}
 --- !u!1 &2487261327682285151
 GameObject:
   m_ObjectHideFlags: 0
@@ -494,6 +543,37 @@ Transform:
   m_Children:
   - {fileID: 3252579374876016552}
   m_Father: {fileID: 2643067454412661118}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4168880268963239078
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5691266810129299088}
+  m_Layer: 0
+  m_Name: MultiParent
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5691266810129299088
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4168880268963239078}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 4045320223463959566}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &4207232174174346064
 GameObject:
@@ -1255,6 +1335,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4718905049056022502, guid: a2946f7bb3734fb45837bffca017fc9a, type: 3}
       insertIndex: -1
       addedObject: {fileID: 668559527863254937}
+    - targetCorrespondingSourceObject: {fileID: 4718905049056022502, guid: a2946f7bb3734fb45837bffca017fc9a, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5691266810129299088}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 5347808569829381468, guid: a2946f7bb3734fb45837bffca017fc9a, type: 3}
       insertIndex: -1

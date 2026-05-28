@@ -21,7 +21,7 @@ namespace LAS
 
             if (ctx.IdlePosition != null)
             {
-                ctx.LookAt.SetTarget(ctx.IdlePosition);
+                ctx.IKController.SetLookAtTarget(ctx.IdlePosition);
                 ctx.Agent.stoppingDistance = 0f;
                 ctx.Agent.SetDestination(ctx.IdlePosition.position);
                 _startTime  = Time.time;
@@ -60,8 +60,8 @@ namespace LAS
         private bool Complete(NPCBehaviourContext ctx)
         {
             var player = ctx.GetPlayerTransform();
-            if (player != null) ctx.LookAt.SetTarget(player);
-            else ctx.LookAt.Clear();
+            if (player != null) ctx.IKController.SetLookAtTarget(player);
+            else ctx.IKController.ClearLookAtTarget();
             ctx.FireReturnedToIdle();
             return true;
         }

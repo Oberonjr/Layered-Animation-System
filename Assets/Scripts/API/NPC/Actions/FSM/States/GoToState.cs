@@ -43,15 +43,8 @@ namespace LAS
             }
 
             _range = _rangeOverride > 0f ? _rangeOverride : ctx.ArrivalDistance;
-
-            // Walking to another NPC: stop at the edge of both agents' radii so the
-            // walking NPC doesn't push into the target instead of beside them.
-            var targetAgent = _target.GetComponent<NavMeshAgent>();
-            if (targetAgent != null)
-                _range += ctx.Agent.radius + targetAgent.radius;
-
-            ctx.LookAt.SetTarget(_target);
-            ctx.Agent.stoppingDistance = _range;
+            ctx.IKController.SetLookAtTarget(_target);
+            ctx.Agent.stoppingDistance = 0f;
             _startTime = Time.time;
             _ready = true;
         }
@@ -61,21 +54,21 @@ namespace LAS
             if (_target == null || !_ready) return true;
 
             // Start walk animation to blend between turning and walking
-            if (ctx.LookAt.canStartAnim)
+            if (ctx.IKController.canStartAnim)
             {
-                ctx.LookAt.EnableLegIK(false);
+                ctx.IKController.EnableLegIK(false);
                 BlendWalkAnim(0, 1, ctx);
             }
             
-            if(!ctx.LookAt.isLookingAtTarget)
+            if(!ctx.IKController.isLookingAtTarget)
                 return false;
             
             // Wait until NPC is looking at target before starting to move
-            if (ctx.LookAt.isLookingAtTarget && !isDestinationSet)
+            if (ctx.IKController.isLookingAtTarget && !isDestinationSet)
             {
-                if (!ctx.LookAt.canStartAnim)
+                if (!ctx.IKController.canStartAnim)
                 {
-                    ctx.LookAt.EnableLegIK(false);
+                    ctx.IKController.EnableLegIK(false);
                     BlendWalkAnim(0, 1, ctx);
                 }
                 
@@ -108,7 +101,7 @@ namespace LAS
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
-            ctx.LookAt.EnableLegIK(true);
+            ctx.IKController.EnableLegIK(true);
             BlendWalkAnim(1, 0, ctx);
             
             Debug.Log("Stop walking");
