@@ -27,15 +27,21 @@ namespace LAS
                 return;
             }
 
-            ctx.LookAt.SetTarget(_target);
+            ctx.IKController.SetLookAtTarget(_target);
             ctx.Agent.stoppingDistance = 0f;
             ctx.Agent.SetDestination(_target.position);
+            
+            Debug.Log(_target.name);
+            
+            ctx.IKController.SetGrabTarget(_target);
+            ctx.IKController.Grab();
+            
             _startTime = Time.time;
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx)
         {
-            if (_target == null || ctx.IsHoldingObject) return true;
+            /*if (_target == null || ctx.IsHoldingObject) return true;
 
             if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
             {
@@ -53,7 +59,17 @@ namespace LAS
 
             if (ctx.Agent.remainingDistance <= ctx.PickupRange)
             {
-                Grab(ctx);
+                //ctx.IKController.SetGrabTarget(_target);
+                //ctx.IKController.Grab();
+                //Grab(ctx);
+                return true;
+            }
+
+            return false;*/
+
+            if (ctx.IKController.hasGrabbed)
+            {
+                ctx.HeldObject = _target.gameObject;
                 return true;
             }
 

@@ -11,9 +11,9 @@ namespace LAS
         {
             var player = ctx.GetPlayerTransform();
             if (player != null)
-                ctx.LookAt.SetTarget(player);
+                ctx.IKController.SetLookAtTarget(player);
             else
-                ctx.LookAt.Clear();
+                ctx.IKController.ClearLookAtTarget();
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx) => true;

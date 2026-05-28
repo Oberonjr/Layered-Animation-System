@@ -34,7 +34,7 @@ namespace LAS
 
             if (_player != null)
             {
-                ctx.LookAt.SetTarget(_player);
+                ctx.IKController.SetLookAtTarget(_player);
                 ctx.Agent.stoppingDistance = 0f;
                 ctx.Agent.SetDestination(_player.position);
                 _startTime  = Time.time;

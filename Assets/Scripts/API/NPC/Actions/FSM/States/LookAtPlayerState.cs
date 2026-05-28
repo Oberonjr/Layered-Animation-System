@@ -13,7 +13,7 @@ namespace LAS
         {
             var player = ctx.GetPlayerTransform();
             if (player != null)
-                ctx.LookAt.SetTarget(player);
+                ctx.IKController.SetLookAtTarget(player);
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx) => true;

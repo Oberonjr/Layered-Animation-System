@@ -16,7 +16,7 @@ namespace LAS
         public override void EnterState(NPCBehaviourContext ctx)
         {
             if (_target != null)
-                ctx.LookAt.SetTarget(_target);
+                ctx.IKController.SetLookAtTarget(_target);
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx) => true;

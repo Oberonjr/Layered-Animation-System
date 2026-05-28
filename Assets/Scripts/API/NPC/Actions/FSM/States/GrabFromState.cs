@@ -18,7 +18,7 @@ namespace LAS
         {
             if (_targetNPC == null) return;
 
-            ctx.LookAt.SetTarget(_targetNPC.transform);
+            ctx.IKController.SetLookAtTarget(_targetNPC.transform);
             ctx.Agent.stoppingDistance = 0f;
             ctx.Agent.SetDestination(_targetNPC.transform.position);
             _startTime = Time.time;

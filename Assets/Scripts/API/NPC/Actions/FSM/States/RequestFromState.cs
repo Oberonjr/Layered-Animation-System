@@ -16,7 +16,7 @@ namespace LAS
         public override void EnterState(NPCBehaviourContext ctx)
         {
             if (_target == null) return;
-            ctx.LookAt.SetTarget(_target);
+            ctx.IKController.SetLookAtTarget(_target);
             // TODO: trigger a "requesting" gesture animation here.
             Debug.Log($"[{ctx.NPCName}] Requesting object from '{_target.name}'.");
         }
