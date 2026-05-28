@@ -35,6 +35,11 @@ public class IKLookAt : MonoBehaviour
     [HideInInspector] public bool isLookingAtTarget;
     
     private Vector3 targetRotation;
+
+    private Vector3 headStart;
+    private Vector3 torsoStart;
+
+    private bool startSet;
     
     private bool isHeadClamped;
     private bool isTorsoClamped;
@@ -88,6 +93,14 @@ public class IKLookAt : MonoBehaviour
         return a;
     }
 
+    float Min(float a)
+    {
+        if (a > 180)
+            return a - 360;
+
+        return a;
+    }
+
     public void ClearTarget()
     {
         targetRotation = Quaternion.LookRotation(transform.forward).eulerAngles;
@@ -101,7 +114,7 @@ public class IKLookAt : MonoBehaviour
         
         if (!legBehaviour.isRotating)
         {
-            if (Mathf.Abs(angle.eulerAngles.y - headBone.eulerAngles.y) < rotationSpeed * Time.deltaTime)
+            if (Mathf.Abs(angle.eulerAngles.y - (root.eulerAngles.y + Min(headBone.localEulerAngles.y) + Min(torsoBone.localEulerAngles.y))) < rotationSpeed * Time.deltaTime)
             {
                 isLookingAtTarget = true;
                 return isLookingAtTarget;
@@ -114,8 +127,8 @@ public class IKLookAt : MonoBehaviour
         if (isHeadClamped && isTorsoClamped)
             legBehaviour.RotateTowards(angle.eulerAngles);
 
-        angle.eulerAngles -= Quaternion.LookRotation(headBone.forward).eulerAngles;
-
+        angle.eulerAngles -= root.eulerAngles + Min(headBone.localEulerAngles) + Min(torsoBone.localEulerAngles);
+        
         Vector3 maxRotation = GetDirectionalNormalized(angle.eulerAngles) * (rotationSpeed * Time.deltaTime);
 
         if(angle.eulerAngles.magnitude < maxRotation.magnitude)
