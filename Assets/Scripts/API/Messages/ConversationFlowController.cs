@@ -44,6 +44,16 @@ namespace LAS
         [SerializeField] private float questionResponseProbability = 0.9f;
         [Tooltip("Chance (0–1) that an NPC responds when called by name in the last message.")]
         [SerializeField] private float directAddressProbability = 0.95f;
+        [Tooltip("How much the follow-up probability drops for each consecutive NPC message. " +
+                 "Prevents NPCs from monopolising the conversation without player input.")]
+        [SerializeField] [Range(0f, 0.5f)] private float consecutiveMessagePenalty = 0.15f;
+        [Tooltip("How many recent messages to look back when checking for questions or direct NPC addressing.")]
+        [SerializeField] [Range(1, 10)] private int recentMessageLookback = 3;
+
+        [Header("Idle Check")]
+        [Tooltip("How often (in seconds) the idle-player check runs in the background. " +
+                 "Should be significantly shorter than Player Idle Time Before Prompt.")]
+        [SerializeField] private float idleCheckInterval = 5f;
 
         [Header("Debug")]
         [Tooltip("Print conversation flow decisions to the console.")]
@@ -82,9 +92,7 @@ namespace LAS
 
             // Start idle check
             if (enableAutoConversation)
-            {
                 idleCheckCoroutine = StartCoroutine(CheckPlayerIdleRoutine());
-            }
         }
 
         void OnDestroy()
@@ -99,31 +107,47 @@ namespace LAS
             // Detect player wanting to speak based on input mode
             if (inputMode == InputMode.Typing)
             {
-                // Use New Input System - compatible with both keyboard and VR
-                if (Keyboard.current != null && Keyboard.current.anyKey.wasPressedThisFrame && !playerIsInterrupting)
+                var inputField = npcManager?.GetPlayerInputField();
+
+                if (Keyboard.current != null)
                 {
-                    // Count how many non-modifier keys were pressed this frame
-                    // Modifier-only presses (lone Shift, Ctrl, Alt) don't count as intent to type
-                    bool shiftOnly = Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.ctrlKey.wasPressedThisFrame
-                                      && !Keyboard.current.altKey.wasPressedThisFrame;
-                    bool ctrlOnly = Keyboard.current.ctrlKey.wasPressedThisFrame
-                                      && !Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.altKey.wasPressedThisFrame;
-                    bool altOnly = Keyboard.current.altKey.wasPressedThisFrame
-                                      && !Keyboard.current.shiftKey.wasPressedThisFrame
-                                      && !Keyboard.current.ctrlKey.wasPressedThisFrame;
-
-                    bool isLoneModifier = shiftOnly || ctrlOnly || altOnly;
-
-                    if (!isLoneModifier)
+                    // Enter / numpad-Enter focuses the chat box when it is not already active,
+                    // so the player does not need to click it between messages.
+                    if (inputField != null && !inputField.isFocused)
                     {
-                        StartCoroutine(DetectPlayerInterruptIntent());
+                        if (Keyboard.current.enterKey.wasPressedThisFrame ||
+                            Keyboard.current.numpadEnterKey.wasPressedThisFrame)
+                        {
+                            inputField.ActivateInputField();
+                            inputField.Select();
+                        }
+                    }
+
+                    // Use New Input System - compatible with both keyboard and VR
+                    if (Keyboard.current.anyKey.wasPressedThisFrame && !playerIsInterrupting)
+                    {
+                        // Count how many non-modifier keys were pressed this frame
+                        // Modifier-only presses (lone Shift, Ctrl, Alt) don't count as intent to type
+                        bool shiftOnly = Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.ctrlKey.wasPressedThisFrame
+                                          && !Keyboard.current.altKey.wasPressedThisFrame;
+                        bool ctrlOnly = Keyboard.current.ctrlKey.wasPressedThisFrame
+                                          && !Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.altKey.wasPressedThisFrame;
+                        bool altOnly = Keyboard.current.altKey.wasPressedThisFrame
+                                          && !Keyboard.current.shiftKey.wasPressedThisFrame
+                                          && !Keyboard.current.ctrlKey.wasPressedThisFrame;
+
+                        bool isLoneModifier = shiftOnly || ctrlOnly || altOnly;
+
+                        if (!isLoneModifier)
+                        {
+                            StartCoroutine(DetectPlayerInterruptIntent());
+                        }
                     }
                 }
 
                 // Clear interruption flag if input field is empty and not focused
-                var inputField = npcManager?.GetPlayerInputField();
                 if (inputField != null && !inputField.isFocused && string.IsNullOrEmpty(inputField.text))
                 {
                     playerIsInterrupting = false;
@@ -279,12 +303,12 @@ namespace LAS
             // Start with base probability
             float probability = npcFollowUpProbability;
 
-            // Reduce probability with each consecutive message
-            float consecutivePenalty = consecutiveNPCMessages * 0.15f;
+            // Reduce probability with each consecutive NPC message
+            float consecutivePenalty = consecutiveNPCMessages * consecutiveMessagePenalty;
             probability -= consecutivePenalty;
 
             // Get recent conversation context
-            var recentMessages = npcManager.GetRecentMessages(3);
+            var recentMessages = npcManager.GetRecentMessages(recentMessageLookback);
 
             if (recentMessages.Count > 0)
             {
@@ -348,7 +372,7 @@ namespace LAS
         {
             while (true)
             {
-                yield return new WaitForSeconds(5f); // Check every 5 seconds
+                yield return new WaitForSeconds(idleCheckInterval);
 
                 float idleTime = Time.time - lastPlayerInputTime;
 
