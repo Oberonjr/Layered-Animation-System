@@ -390,6 +390,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1740462934737239201, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
+      propertyPath: root
+      value: 
+      objectReference: {fileID: 631594394}
     - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: maxAlpha
       value: 0.5
@@ -1429,6 +1433,11 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1747144158}
   m_SourcePrefab: {fileID: 100100000, guid: 3e86eb9c18ced4749aa1b9bcb05352eb, type: 3}
+--- !u!4 &631594394 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 5761459075640121729, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
+  m_PrefabInstance: {fileID: 120725380}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &684709336
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4679,7 +4688,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: enableAutoConversation
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcFollowUpProbability
@@ -4695,7 +4704,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxConsecutiveNPCMessages
-      value: 150
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxTimeBetweenNPCMessages
@@ -4707,7 +4716,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: playerIdleTimeBeforePrompt
-      value: 70000
+      value: 7
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: questionResponseProbability
