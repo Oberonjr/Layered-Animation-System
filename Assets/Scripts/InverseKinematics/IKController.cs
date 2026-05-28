@@ -71,6 +71,11 @@ namespace LAS
             grab.GrabObject();
         }
 
+        public void PutDown()
+        {
+            grab.PutDownObject();
+        }
+
         public void OnGrabbed()
         {
             ClearLookAtTarget();

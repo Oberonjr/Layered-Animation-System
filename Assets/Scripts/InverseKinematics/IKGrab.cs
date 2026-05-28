@@ -58,6 +58,21 @@ namespace LAS
             });
         }
 
+        public void PutDownObject()
+        {
+            if (!IKTarget)
+                return;
+
+            DOVirtual.Float(1, 0, blendSpeed, value =>
+            {
+                constraint.weight = value;
+            }).OnComplete(() =>
+            {
+                grabTarget = null;
+                actualTarget = null;
+            });
+        }
+
         private void SnapObject()
         {
             if (!grabTarget)
@@ -66,8 +81,6 @@ namespace LAS
             OnGrabbed.Invoke();
             
             grabTarget.parent = wrist;
-            
-            //grabTarget.localPosition = actualTarget.localPosition;
         }
     }
 }
