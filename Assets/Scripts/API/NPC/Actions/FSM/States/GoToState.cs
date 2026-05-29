@@ -22,6 +22,8 @@ namespace LAS
         private bool _alreadyInRange;
         private bool _walkStarted;
 
+        private bool isDestinationSet;
+
         private const float BlendDuration = 0.3f;
         private bool _isBlending;
 
@@ -75,7 +77,6 @@ namespace LAS
 
             ctx.IKController.SetLookAtTarget(_target);
             ctx.Agent.stoppingDistance = _range;
-            ctx.Agent.SetDestination(_target.position);
             _startTime = Time.time;
             _ready = true;
         }
@@ -85,13 +86,31 @@ namespace LAS
             if (_alreadyInRange) return true;
             if (_target == null || !_ready) return true;
 
-            if (!_walkStarted)
+            if (ctx.IKController.canStartAnim)
             {
                 ctx.IKController.EnableLegIK(false);
                 BlendWalkAnim(0, 1, ctx);
-                _walkStarted = true;
+            }
+            
+            if(!ctx.IKController.isLookingAtTarget)
+                return false;
+            
+            // Wait until NPC is looking at target before starting to move
+            if (ctx.IKController.isLookingAtTarget && !isDestinationSet)
+            {
+                if (!ctx.IKController.canStartAnim)
+                {
+                    ctx.IKController.EnableLegIK(false);
+                    BlendWalkAnim(0, 1, ctx);
+                }
+                
+                ctx.Agent.SetDestination(_target.position);
+                isDestinationSet = true;
             }
 
+            if (!isDestinationSet)
+                return false;
+            
             if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
             {
                 Debug.LogWarning($"[{ctx.NPCName}] GoTo: timed out navigating to '{_target.name}'.");
