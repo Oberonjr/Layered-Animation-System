@@ -1,5 +1,36 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &244622808573485440
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8388297212881020954}
+  m_Layer: 0
+  m_Name: RightWrist
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8388297212881020954
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 244622808573485440}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.5305138, y: 0.46919215, z: -0.48693404, w: 0.5111841}
+  m_LocalPosition: {x: 0.5891703, y: 1.3877709, z: -0.0098260045}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6007748341737927144}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &725485672902383077
 GameObject:
   m_ObjectHideFlags: 0
@@ -120,6 +151,37 @@ Transform:
   m_Children: []
   m_Father: {fileID: 7276107566940218067}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &4050162941761796868
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1718436060065313866}
+  m_Layer: 0
+  m_Name: LeftWrist
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1718436060065313866
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4050162941761796868}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.53051376, y: -0.4691921, z: 0.48693416, w: 0.51118404}
+  m_LocalPosition: {x: -0.58917004, y: 1.3877708, z: -0.009824932}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6007748341737927144}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &5648017595608509285
 GameObject:
   m_ObjectHideFlags: 0
@@ -219,10 +281,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCBehaviourController
   lookAtScript: {fileID: 1740462934737239201}
-  ikController: {fileID: 0}
+  ikController: {fileID: 5929248942289553291}
   animator: {fileID: 4793025665771729984}
   itemSlot: {fileID: 2983491863521806401}
-  arrivalDistance: 1.5
+  arrivalDistance: 0.75
   pickupRange: 1.2
   handOverRange: 1
   goToTimeoutSeconds: 15
@@ -336,6 +398,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Animated_NPC
       objectReference: {fileID: 0}
+    - target: {fileID: 3774178358496099989, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
+      propertyPath: root
+      value: 
+      objectReference: {fileID: 5761459075640121729}
     - target: {fileID: 5082986251332801678, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
       propertyPath: root
       value: 
@@ -356,6 +422,10 @@ PrefabInstance:
       propertyPath: walkBlendThreshold
       value: 0.8
       objectReference: {fileID: 0}
+    - target: {fileID: 5354107806019148378, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
+      propertyPath: wrist
+      value: 
+      objectReference: {fileID: 1718436060065313866}
     - target: {fileID: 5354107806019148378, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
       propertyPath: IKTarget
       value: 
@@ -408,6 +478,12 @@ PrefabInstance:
     m_RemovedGameObjects:
     - {fileID: 4168880268963239078, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
     m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 9158071630870901724, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1718436060065313866}
+    - targetCorrespondingSourceObject: {fileID: 9158071630870901724, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8388297212881020954}
     - targetCorrespondingSourceObject: {fileID: 668559527863254937, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7276107566940218067}
@@ -466,6 +542,17 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7774491828604288112, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
   m_PrefabInstance: {fileID: 3190746361685295668}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &5929248942289553291 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 9083517004267701695, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}
+  m_PrefabInstance: {fileID: 3190746361685295668}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5129893af0e998b43b7c860ad700dc31, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LAS.IKController
 --- !u!4 &5960685270401869841 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9151126722692491813, guid: 68b36d69716c9794cb4912df9f6dd473, type: 3}

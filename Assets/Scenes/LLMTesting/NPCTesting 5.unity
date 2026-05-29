@@ -390,82 +390,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1740462934737239201, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: root
-      value: 
-      objectReference: {fileID: 631594394}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: maxAlpha
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: minAlpha
-      value: 0.1
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: pulseSpeed
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: npcAliases.Array.size
-      value: 6
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[0]'
-      value: Nurse
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[1]'
-      value: Nurse Michael
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[2]'
-      value: Nurse Mike
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[3]'
-      value: Mike
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[4]'
-      value: Michael
-      objectReference: {fileID: 0}
-    - target: {fileID: 2499548910160293825, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'npcAliases.Array.data[5]'
-      value: Rodriguez
-      objectReference: {fileID: 0}
-    - target: {fileID: 2983491863521806401, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0.398
-      objectReference: {fileID: 0}
-    - target: {fileID: 2983491863521806401, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.931
-      objectReference: {fileID: 0}
-    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: pickupRange
-      value: 0.3
-      objectReference: {fileID: 0}
     - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: idlePosition
       value: 
       objectReference: {fileID: 1525387255}
-    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: ikController
-      value: 
-      objectReference: {fileID: 120725382}
-    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: handOverRange
-      value: 0.3
-      objectReference: {fileID: 0}
-    - target: {fileID: 4285066767955231373, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: arrivalDistance
-      value: 0.25
-      objectReference: {fileID: 0}
-    - target: {fileID: 5529717631758298660, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: m_Enabled
-      value: 0
-      objectReference: {fileID: 0}
     - target: {fileID: 5648017595608509285, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: m_Name
       value: NPC_Nurse
@@ -510,21 +438,8 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 8509796114061807567, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: m_Materials.Array.size
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8509796114061807567, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: aaddffe38381a60428eb1aeab1ba8b85, type: 2}
-    - target: {fileID: 8509796114061807567, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-      propertyPath: 'm_Materials.Array.data[1]'
-      value: 
-      objectReference: {fileID: 2100000, guid: f5ccd52dc494e054fbe7d7161dcabe25, type: 2}
     m_RemovedComponents: []
-    m_RemovedGameObjects:
-    - {fileID: 7667306071077657323, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
+    m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
@@ -539,17 +454,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec8e483e2c0b8844497bf28c22918d1b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCController
---- !u!114 &120725382 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5929248942289553291, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-  m_PrefabInstance: {fileID: 120725380}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5129893af0e998b43b7c860ad700dc31, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::LAS.IKController
 --- !u!1001 &159784390
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1433,11 +1337,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1747144158}
   m_SourcePrefab: {fileID: 100100000, guid: 3e86eb9c18ced4749aa1b9bcb05352eb, type: 3}
---- !u!4 &631594394 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 5761459075640121729, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
-  m_PrefabInstance: {fileID: 120725380}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &684709336
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3876,16 +3775,12 @@ PrefabInstance:
       objectReference: {fileID: 1387029659}
     - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
       propertyPath: pickupRange
-      value: 0.3
+      value: 0.25
       objectReference: {fileID: 0}
     - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
       propertyPath: idlePosition
       value: 
       objectReference: {fileID: 43034871}
-    - target: {fileID: 9089757627538900952, guid: e09b71a65619f734a94145573285bc09, type: 3}
-      propertyPath: handOverRange
-      value: 0.3
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 1963971474002294112, guid: e09b71a65619f734a94145573285bc09, type: 3}
@@ -4687,10 +4582,6 @@ PrefabInstance:
       value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
-      propertyPath: enableAutoConversation
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcFollowUpProbability
       value: 1
       objectReference: {fileID: 0}
@@ -4704,7 +4595,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxConsecutiveNPCMessages
-      value: 15
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxTimeBetweenNPCMessages
@@ -4733,7 +4624,7 @@ PrefabInstance:
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: llmProvider
       value: 
-      objectReference: {fileID: 11400000, guid: b2bb2f81ff7956c49bafd514d9bbf8f2, type: 2}
+      objectReference: {fileID: 11400000, guid: f354b8bc7c2f8184999e5d61467210ed, type: 2}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: logLLMResponses
       value: 1
