@@ -223,6 +223,11 @@ namespace LAS
                 {
                     Debug.Log($"[Dispatcher] Prepending GoToState({def.approachRangeType}) for {step.action_key} → '{primary.name}'");
                     behaviour.FSM.Enqueue(new GoToState(primary, def.approachRangeType));
+
+                    if (primary.TryGetComponent(out NPCBehaviourController npcController))
+                    {
+                        npcController.Context.IKController.SetLookAtTarget(behaviour.transform);
+                    }
                 }
 
                 behaviour.FSM.Enqueue(def.MakeState(primary, secondary));
@@ -260,6 +265,11 @@ namespace LAS
 
             if (actionDef.requiresApproach && primaryTarget != null)
             {
+                if (primaryTarget.TryGetComponent(out NPCBehaviourController npcController))
+                {
+                    npcController.Context.IKController.SetLookAtTarget(behaviour.transform);
+                }
+                
                 behaviour.FSM.Interrupt(new GoToState(primaryTarget, actionDef.approachRangeType));
                 behaviour.FSM.Enqueue(state);
             }

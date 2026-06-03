@@ -21,8 +21,11 @@ namespace LAS
 
         public override bool UpdateState(NPCBehaviourContext ctx)
         {
-            if (_targetNPC == null || !ctx.IsHoldingObject) return true;
+            if (_targetNPC == null || !ctx.IsHoldingObject) 
+                return true;
 
+            Debug.Log(_targetNPC.transform.name);
+            
             Transfer(ctx);
             return true;
         }
@@ -31,27 +34,22 @@ namespace LAS
 
         private void Transfer(NPCBehaviourContext ctx)
         {
-            if (ctx.HeldObject == null) return;
-
+            if (ctx.HeldObject == null) 
+                return;
+            
             var targetCtx = _targetNPC.Context;
-            if (targetCtx == null || targetCtx.ItemSlot == null) return;
-
+            if (targetCtx == null || targetCtx.ItemSlot == null) 
+                return;
+            
             var transferring = ctx.HeldObject;
-            ctx.HeldObject = null;
 
-            transferring.transform.SetParent(targetCtx.ItemSlot);
-            transferring.transform.localPosition = Vector3.zero;
-            transferring.transform.localRotation = Quaternion.identity;
+            targetCtx.IKController.SetGrabTarget(transferring.transform);
+            
+            ctx.IKController.HandOver(targetCtx.IKController);
+            
             targetCtx.HeldObject = transferring;
-
-            var interactable = transferring.GetComponent<InteractableItem>();
-            if (interactable != null)
-            {
-                interactable.isHeld          = true;
-                interactable.heldByNPC       = targetCtx.NPCName;
-                interactable.currentLocation = "";
-            }
-
+            ctx.HeldObject = null;
+            
             ctx.FireHandedObject(transferring);
         }
     }

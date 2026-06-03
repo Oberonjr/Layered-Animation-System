@@ -76,6 +76,12 @@ namespace LAS
             grab.PutDownObject();
         }
 
+        public void HandOver(IKController otherController)
+        {
+            grab.OfferObject();
+            otherController.grab.GrabObject();
+        }
+
         public void OnGrabbed()
         {
             ClearLookAtTarget();
