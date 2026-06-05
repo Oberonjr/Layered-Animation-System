@@ -94,12 +94,10 @@ namespace LAS
             { 
                 SnapObject();
 
-                /*
                 DOVirtual.Vector3(ikRotation.eulerAngles, currentHand.restingHoldAnchor.rotation.eulerAngles, blendSpeed, value =>
                 {
                     ikRotation.eulerAngles = value;
                 });
-                */
                 
                 DOVirtual.Vector3(ikPosition, currentHand.restingHoldAnchor.position, blendSpeed, value =>
                 {

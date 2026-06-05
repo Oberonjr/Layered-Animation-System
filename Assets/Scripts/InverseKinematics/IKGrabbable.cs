@@ -15,33 +15,31 @@ namespace LAS
             var worldToLocalMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one).inverse;
             position = worldToLocalMatrix.MultiplyPoint3x4(position);
             
-            //rotation.eulerAngles += transform.rotation.eulerAngles;
-            
             rotation = Quaternion.Inverse(transform.rotation) * rotation;
             
             GrabPose grabPose = new GrabPose(position, rotation, isRightHanded);
-            grabData.grabTransforms.Add(grabPose);
+            grabData.grabPoses.Add(grabPose);
         }
 
         public void ClearData()
         {
-            grabData.grabTransforms.Clear();
+            grabData.grabPoses.Clear();
         }
 
         public GrabPose GetPose(int index)
         {
-            if (index >= grabData.grabTransforms.Count)
+            if (index >= grabData.grabPoses.Count)
             {
                 Debug.LogError("Grab pose index out of range");
                 return new GrabPose();
             }
 
-            GrabPose pose = grabData.grabTransforms[index];
+            GrabPose pose = grabData.grabPoses[index];
             
             Matrix4x4 localToWorldMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
             pose.position = localToWorldMatrix.MultiplyPoint3x4(pose.position);
 
-            pose.rotation = Quaternion.Inverse(transform.rotation) * pose.rotation;
+            pose.rotation = transform.rotation * pose.rotation;
             
             Debug.Log("Pose hand: " + pose.rightHanded);
             
@@ -50,13 +48,22 @@ namespace LAS
         
         public void SetLocalPosition(Transform localSpace)
         {
-            GrabPose pose = grabData.grabTransforms[activePose];
+            GrabPose pose = grabData.grabPoses[activePose];
             Vector3 position = pose.position;
 
             transform.rotation = new Quaternion();
             
             Quaternion rotation = pose.rotation;
+
+            /*
+            if (pose.rightHanded)
+            else
+                rotation = localSpace.rotation * Quaternion.Inverse(rotation);
+                */
+                
             rotation = localSpace.rotation * Quaternion.Inverse(rotation);
+                
+            
             transform.rotation = rotation;
             
             position = transform.TransformDirection(position);
@@ -72,27 +79,26 @@ namespace LAS
             Transform currentWrist = leftWrist;
             for (int i = 0; i < 2; i++)
             {
-                if (i > 0)
-                    currentWrist = rightWrist;
+                /*if (i > 0)
+                    currentWrist = rightWrist;*/
                 
-                float currentClosestDistance = Mathf.Infinity;
-                int currentClosestPose = 0;
-                
-                for (int j = 0; j < grabData.grabTransforms.Count; j++)
+                for (int j = 0; j < grabData.grabPoses.Count; j++)
                 {
-                    if (i <= 0)
+                    if (grabData.grabPoses[j].rightHanded)
+                        continue;
+                    
+                    /*if (i <= 0)
                     {
-                        if (grabData.grabTransforms[j].rightHanded)
+                        if (grabData.grabPoses[j].rightHanded)
                             continue;
                     }
                     else
                     {
-                        if (!grabData.grabTransforms[j].rightHanded)
-                            continue;
-                    }
+
+                    }*/
                     
                     Matrix4x4 localToWorldMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
-                    Vector3 position = localToWorldMatrix.MultiplyPoint3x4(grabData.grabTransforms[j].position);
+                    Vector3 position = localToWorldMatrix.MultiplyPoint3x4(grabData.grabPoses[j].position);
                     
                     Vector3 distance = position - currentWrist.position;
 
@@ -107,7 +113,8 @@ namespace LAS
             }
 
             Debug.Log("Closest pose is: " + closestPose);
-            
+
+            activePose = closestPose;
             return GetPose(closestPose);
         }
         
@@ -121,14 +128,30 @@ namespace LAS
             if (!drawPreviews)
                 return;
             
-            for (int i = 0; i < grabData.grabTransforms.Count; i++)
+            for (int i = 0; i < grabData.grabPoses.Count; i++)
             {
-                GrabPose pose = grabData.grabTransforms[i];   
+                GrabPose pose = grabData.grabPoses[i];   
                 
                 Matrix4x4 localToWorldMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
                 pose.position = localToWorldMatrix.MultiplyPoint3x4(pose.position);
                 
+                //Gizmos.matrix = Matrix4x4.TRS(pose.position, pose.rotation, new Vector3(0.1f, 0.1f, 0.1f));
+
+                Gizmos.color = Color.white;
+
+                if (pose.rightHanded)
+                    Gizmos.color = Color.deepPink;
+                
                 Gizmos.DrawWireCube(pose.position, new Vector3(0.1f, 0.1f, 0.1f));
+
+                Gizmos.color = Color.blue;
+                Gizmos.DrawRay(pose.position, transform.rotation * pose.rotation * (Vector3.forward * 0.1f));
+
+                Gizmos.color = Color.green;
+                Gizmos.DrawRay(pose.position, transform.rotation * pose.rotation * (Vector3.up * 0.1f));
+
+                Gizmos.color = Color.red;
+                Gizmos.DrawRay(pose.position, transform.rotation * pose.rotation * (Vector3.right * 0.1f));
             }
         }
 

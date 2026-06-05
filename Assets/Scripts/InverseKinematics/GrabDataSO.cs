@@ -22,6 +22,6 @@ namespace LAS
     [CreateAssetMenu(fileName = "GrabDataSO", menuName = "ScriptableObjects/GrabDataSO")]
     public class GrabDataSO : ScriptableObject
     {
-        public List<GrabPose> grabTransforms;
+        public List<GrabPose> grabPoses;
     }
 }
