@@ -143,12 +143,7 @@ namespace LAS
 
             grabbable.SetLocalPosition(currentHand.itemSlot);
             
-            /*grabTarget.rotation = currentHand.itemSlot.rotation * Quaternion.Inverse(grabPose.rotation);
-            grabTarget.position = currentHand.itemSlot.position - grabTarget.rotation * grabPose.position;*/
-            
             grabTarget.SetParent(currentHand.itemSlot, true);
-            
-            //grabTarget.localPosition = Vector3.zero;
         }
     }
 }
