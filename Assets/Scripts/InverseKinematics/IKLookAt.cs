@@ -11,23 +11,23 @@ public class IKLookAt : MonoBehaviour
     
     [Header("Head")]
     [SerializeField] private Transform headBone;
-    [SerializeField] private float headPitchLimits;
-    [SerializeField] private float headYawLimits;
-    [SerializeField] private float headRollLimits;
+    [SerializeField] private float headPitchLimits = 40;
+    [SerializeField] private float headYawLimits = 70;
+    [SerializeField] private float headRollLimits = 20;
     [SerializeField] private AnimationCurve smoothRotationCurve;
 
     [Header("Torso")] 
     [SerializeField] private Transform torsoBone;
-    [SerializeField] private float torsoPitchLimits;
-    [SerializeField] private float torsoYawLimits;
-    [SerializeField] private float torsoRollLimits;
+    [SerializeField] private float torsoPitchLimits = 15;
+    [SerializeField] private float torsoYawLimits = 30;
+    [SerializeField] private float torsoRollLimits = 15;
 
     [Header("Legs")]
     [SerializeField] private IkLegTurning legBehaviour;
     
     [Header("Rotation parameters")]
-    [SerializeField] private float rotationSpeed;
-    [SerializeField][Range(0, 1)] private float enableLegsThreshold;
+    [SerializeField] private float rotationSpeed = 360;
+    [SerializeField][Range(0, 1)] private float enableLegsThreshold = 0.5f;
 
     [SerializeField] private Transform testTarget;
 
@@ -48,6 +48,8 @@ public class IKLookAt : MonoBehaviour
     private float headCoefficient;
     private float torsoCoefficient;
 
+    private bool isReturning;
+    
     private void Start()
     {
         float totalClamp = headYawLimits + torsoYawLimits;
@@ -103,6 +105,7 @@ public class IKLookAt : MonoBehaviour
 
     public void ClearTarget()
     {
+
         targetRotation = Quaternion.LookRotation(transform.forward).eulerAngles;
     }
     
@@ -110,22 +113,31 @@ public class IKLookAt : MonoBehaviour
     {
         Quaternion angle = Quaternion.LookRotation(lookAtTarget.position - headBone.position);
 
+        if (isReturning)
+            angle = Quaternion.LookRotation(transform.forward);
+
         canStartAnim = legBehaviour.canStartAnim;
         
-        if (!legBehaviour.isRotating)
+        if (Mathf.Abs(angle.eulerAngles.y - (root.eulerAngles.y + Min(headBone.localEulerAngles.y) + Min(torsoBone.localEulerAngles.y))) < rotationSpeed * Time.deltaTime)
         {
-            if (Mathf.Abs(angle.eulerAngles.y - (root.eulerAngles.y + Min(headBone.localEulerAngles.y) + Min(torsoBone.localEulerAngles.y))) < rotationSpeed * Time.deltaTime)
+            if (!legBehaviour.isRotating)
             {
                 isLookingAtTarget = true;
                 return isLookingAtTarget;
             }
+            
+            isReturning = true;
         }
         
         if(isLookingAtTarget)
             isLookingAtTarget = false;
 
         if (isHeadClamped && isTorsoClamped)
+        {
             legBehaviour.RotateTowards(angle.eulerAngles);
+
+            isReturning = true;
+        }
 
         angle.eulerAngles -= root.eulerAngles + Min(headBone.localEulerAngles) + Min(torsoBone.localEulerAngles);
         
@@ -191,6 +203,19 @@ public class IKLookAt : MonoBehaviour
         
         Debug.Log("Finished look at: " + headBone.eulerAngles);
     }
+
+    // Called by IKSetup during runtime, not to be used anywhere else.
+    public void AutoSetup(Transform head, Transform torso)
+    {
+        root = transform;
+        headBone = transform.Find("BodyPivot").GetChild(0);
+        torsoBone = transform.Find("BodyPivot").GetChild(1);
+
+        legBehaviour = GetComponent<IkLegTurning>();
+
+        smoothRotationCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
+    }
+    
     
     private Vector3 ClampRotation(Vector3 vectorToClamp, Vector3 clampLimits)
     {

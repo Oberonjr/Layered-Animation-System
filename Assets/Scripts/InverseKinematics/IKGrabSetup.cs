@@ -29,6 +29,20 @@ namespace LAS
             
         }
 
+        public void SetRestingPose()
+        {
+            IKGrab grab = transform.root.GetComponent<IKGrab>();
+            
+            if (wristToPose)
+            {
+                grab.SetRestingPosition(wristToPose.position, wristToPose.rotation, isRightHanded);
+                return;
+            }
+            
+            // If wristToPose is null, default to transform
+            grab.SetRestingPosition(transform.position, transform.rotation, isRightHanded);
+        }
+
         public void ClearData()
         {
             if (!grabbable)

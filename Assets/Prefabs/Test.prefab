@@ -125,8 +125,12 @@ MonoBehaviour:
   rightFoot: {fileID: 3913868638921686147}
   leftHand: {fileID: 8739204075513447163}
   rightHand: {fileID: 5897475701384077656}
+  head: {fileID: 7400889074196613052}
+  torso: {fileID: 7100893254374781704}
   targetEffectorMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   hintEffectorMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  maxHeadRotation: 70
+  maxTorsoRotation: 30
 --- !u!4 &3062647454265987717 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2371273456677547472, guid: 6ce2ca4393664d6458bbda59da45f5a3, type: 3}
@@ -145,6 +149,16 @@ Transform:
 --- !u!4 &5897475701384077656 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6607004817378926093, guid: 6ce2ca4393664d6458bbda59da45f5a3, type: 3}
+  m_PrefabInstance: {fileID: 750061574795083605}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &7100893254374781704 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7558080097235586141, guid: 6ce2ca4393664d6458bbda59da45f5a3, type: 3}
+  m_PrefabInstance: {fileID: 750061574795083605}
+  m_PrefabAsset: {fileID: 0}
+--- !u!4 &7400889074196613052 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 7844703623733557481, guid: 6ce2ca4393664d6458bbda59da45f5a3, type: 3}
   m_PrefabInstance: {fileID: 750061574795083605}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &8739204075513447163 stripped

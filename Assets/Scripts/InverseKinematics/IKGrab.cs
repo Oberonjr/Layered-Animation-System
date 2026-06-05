@@ -145,5 +145,36 @@ namespace LAS
             
             grabTarget.SetParent(currentHand.itemSlot, true);
         }
+
+        public void AutoSetup(Transform ikRig, Transform leftItemSlot, Transform rightItemSlot)
+        {
+            leftHand = new HandIK();
+            leftHand.constraint = ikRig.GetChild(0).GetComponent<TwoBoneIKConstraint>();
+            leftHand.handTarget = ikRig.GetChild(0).GetChild(0);
+            leftHand.itemSlot = leftItemSlot;
+            leftHand.restingHoldAnchor = new GameObject().transform;
+            leftHand.restingHoldAnchor.name = "LeftHandRestingPose";
+            leftHand.restingHoldAnchor.parent = transform.GetChild(3);
+            leftHand.restingHoldAnchor.localPosition = Vector3.zero;
+            
+            rightHand = new HandIK();
+            rightHand.constraint = ikRig.GetChild(1).GetComponent<TwoBoneIKConstraint>();
+            rightHand.handTarget = ikRig.GetChild(1).GetChild(0);
+            rightHand.itemSlot = rightItemSlot;
+            rightHand.restingHoldAnchor = new GameObject().transform;
+            rightHand.restingHoldAnchor.name = "RightHandRestingPose";
+            rightHand.restingHoldAnchor.parent = transform.GetChild(3);
+            rightHand.restingHoldAnchor.localPosition = Vector3.zero;
+        }
+
+        public void SetRestingPosition(Vector3 position, Quaternion rotation, bool isRightHand)
+        {
+            if (isRightHand)
+            {
+                rightHand.restingHoldAnchor.position = position;
+                rightHand.restingHoldAnchor.rotation = rotation;
+            }
+            
+        }
     }
 }

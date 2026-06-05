@@ -18,14 +18,25 @@ namespace LAS
         [Header("Effectors")] 
         [SerializeField] private Mesh targetEffectorMesh;
         [SerializeField] private Mesh hintEffectorMesh;
+
+        [Header("Default values")] 
+        [SerializeField] private float maxHeadRotation = 70;
+        [SerializeField] private float maxTorsoRotation = 30;
         
         private GameObject ikRig;
+        private GameObject bodyPivot;
+        private GameObject root;
+
+        private GameObject headPivot;
+        private GameObject torsoPivot;
         
         private RigBuilder rigBuilder;
         
         public void Setup()
         {
             ClearRig();
+
+            root = transform.parent.gameObject;
             
             ikRig = new GameObject();
             ikRig.transform.parent = transform;
@@ -38,19 +49,24 @@ namespace LAS
             
             SetupTwoBoneConstraint(leftHand, "Left Hand");
             SetupTwoBoneConstraint(rightHand, "Right Hand");
-            SetupTwoBoneConstraint(leftFoot, "Left Foot");
-            SetupTwoBoneConstraint(rightFoot, "Right Foot");
+            SetupTwoBoneConstraint(leftFoot, "Left Foot", true);
+            SetupTwoBoneConstraint(rightFoot, "Right Foot", true);
+
+            bodyPivot = new GameObject();
+            bodyPivot.transform.parent = root.transform;
+            bodyPivot.name = "BodyPivot";
+            bodyPivot.transform.localPosition = Vector3.zero;
+            
+            SetupMultiAimConstraint(head, "Head");
+            SetupMultiAimConstraint(torso, "Torso");
             
             rigBuilder.layers.Clear();
             rigBuilder.layers.Add(new RigLayer(rig, true));
-            
-            //rigBuilder.Build();
-            
-            RigEffectorData data = new RigEffectorData();
+
+            SetupScripts();
         }
 
-
-        private void SetupTwoBoneConstraint(Transform tip, string name)
+        private void SetupTwoBoneConstraint(Transform tip, string name, bool isLeg = false)
         {
             GameObject constraintObject = new GameObject();
             constraintObject.transform.parent = ikRig.transform;
@@ -65,13 +81,28 @@ namespace LAS
 
             GameObject target = new GameObject();
             target.transform.parent = constraintObject.transform;
-            target.transform.name = "Target";
+            target.transform.name = name + " Target";
             constraint.data.target = target.transform;
 
             GameObject hint = new GameObject();
             hint.transform.parent = constraintObject.transform;
-            hint.transform.name = "Hint";
+            hint.transform.name = name + " Hint";
             constraint.data.hint = hint.transform;
+            
+            if (isLeg)
+            {
+                GameObject legPivot = new GameObject();
+                legPivot.transform.parent = root.transform;
+                legPivot.name = name + " Pivot";
+                legPivot.transform.localPosition = Vector3.zero;
+
+                target.transform.parent = legPivot.transform;
+                hint.transform.parent = legPivot.transform;
+            }
+            else
+            {
+                target.AddComponent<IKGrabSetup>();
+            }
             
             Vector3 rootPosition = constraint.data.root.position;
             Vector3 midPosition = constraint.data.mid.position;
@@ -104,7 +135,6 @@ namespace LAS
                 targetStyle.size = 0.10f;
                 rig.AddEffector(constraint.data.target, targetStyle);
                 
-                
                 RigEffectorData.Style hintStyle = new RigEffectorData.Style();
                 hintStyle.shape = hintEffectorMesh;
                 hintStyle.color = new Color(1f, 0f, 0f, 0.5f);
@@ -123,17 +153,69 @@ namespace LAS
             constraintObject.transform.localPosition = Vector3.zero;
 
             MultiAimConstraint constraint = constraintObject.AddComponent<MultiAimConstraint>();
+
+            GameObject targetPivot = new GameObject();
+            targetPivot.transform.parent = bodyPivot.transform;
+            targetPivot.name = name + "Pivot";
+            targetPivot.transform.position = bone.position;
+
+            GameObject target = new GameObject();
+            target.transform.parent = targetPivot.transform;
+            target.transform.name = name + "Target";
+            target.transform.localPosition = targetPivot.transform.forward;
+
+            WeightedTransform targetTransform;
+            targetTransform.transform = target.transform;
+            targetTransform.weight = 1;
+            
+            constraint.data.constrainedObject = bone;
+            constraint.data.sourceObjects.Add(targetTransform);
+            constraint.data.constrainedXAxis = false;
+            constraint.data.constrainedYAxis = true;
+            constraint.data.constrainedZAxis = false;
+            constraint.data.limits = new Vector2(-maxHeadRotation, maxHeadRotation);
+        }
+
+        private void SetupScripts()
+        {
+            IKLookAt lookAt = root.AddComponent<IKLookAt>();
+            
+            IkLegTurning legTurning = root.AddComponent<IkLegTurning>();
+            
+            IKGrab grab = root.AddComponent<IKGrab>();
+            
+            lookAt.AutoSetup(head, torso);
+            
+            legTurning.AutoSetup(ikRig.transform);
+            
+            grab.AutoSetup(ikRig.transform, leftHand, rightHand);
         }
 
         private void ClearRig()
         {
-            Transform ikRig;
-
-            if (ikRig = transform.Find("IKRig"))
+            if (transform.Find("IKRig") && ikRig)
                 DestroyImmediate(ikRig.gameObject);
-
+            
             if (rigBuilder)
                 rigBuilder.layers.Clear();
+
+            if (!root)
+                return;
+
+            while (root.transform.childCount > 1)
+            {
+                if(root.transform.GetChild(1))
+                    DestroyImmediate(root.transform.GetChild(1).gameObject);
+            }
+            
+            if(root.TryGetComponent(out IKLookAt lookAt))
+                DestroyImmediate(lookAt);
+            
+            if(root.TryGetComponent(out IkLegTurning legTurning))
+                DestroyImmediate(legTurning);
+            
+            if(root.TryGetComponent(out IKGrab grab))
+                DestroyImmediate(grab);
         }
     }
 }

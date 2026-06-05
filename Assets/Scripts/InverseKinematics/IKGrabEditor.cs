@@ -10,10 +10,16 @@ namespace LAS
         {
             DrawDefaultInspector();
 
-            if (GUILayout.Button("Add grab Pose"))
+            if (GUILayout.Button("Add grab pose"))
             {
                 IKGrabSetup setup = target as IKGrabSetup;
                 setup.AddGrabPose();
+            }
+
+            if (GUILayout.Button("Set rest pose"))
+            {
+                IKGrabSetup setup = target as IKGrabSetup;
+                setup.SetRestingPose();
             }
             
             if (GUILayout.Button("Clear grab poses"))

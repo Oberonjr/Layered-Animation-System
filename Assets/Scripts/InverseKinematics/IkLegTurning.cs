@@ -24,19 +24,19 @@ namespace LAS
     public class IkLegTurning : MonoBehaviour
     {
         // How fast the legs rotate in degrees per second
-        [SerializeField] private float rotationSpeed;
+        [SerializeField] private float rotationSpeed = 540;
         
         // Maximum character step size in degrees
-        [SerializeField][Range(0, 180)] private int maxStepSize;
+        [SerializeField][Range(0, 180)] private int maxStepSize = 180;
 
         // This curve determines the timing/speed of the rotation
         [SerializeField] private AnimationCurve legMovementCurve;
         [SerializeField] private AnimationCurve legVerticalMovementCurve;
-        [SerializeField] private float maxFootHeight;
+        [SerializeField] private float maxFootHeight = 0.1f;
         
         [Header("Animation weights")]
-        [SerializeField][Range(0,1)] private float walkBlendThreshold;
-        [SerializeField] private float weightTweenDuration;
+        [SerializeField][Range(0,1)] private float walkBlendThreshold = 0.9f;
+        [SerializeField] private float weightTweenDuration = 0.2f;
         
         [Header("Left foot")] 
         [SerializeField] private Transform leftPivot;
@@ -227,6 +227,24 @@ namespace LAS
 
             catchingUp = false;
             foot.isGrounded = true;
+        }
+
+        public void AutoSetup(Transform ikRig)
+        {
+            root = transform;
+            body = transform.GetChild(0);
+            bodyIKPivot = transform.GetChild(3);
+            
+            legMovementCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
+            legVerticalMovementCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.5f, 1),  new Keyframe(1, 0));
+
+            leftPivot = transform.GetChild(1).transform;
+            leftConstraint = ikRig.GetChild(2).GetComponent<TwoBoneIKConstraint>();
+            
+            rightPivot = transform.GetChild(2).transform;
+            rightConstraint = ikRig.GetChild(3).GetComponent<TwoBoneIKConstraint>();
+            
+
         }
     }
 }

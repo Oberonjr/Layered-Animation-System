@@ -35,15 +35,19 @@ namespace LAS
             }
 
             var grabbed = targetCtx.HeldObject;
-            targetCtx.HeldObject = null;
             ctx.HeldObject = grabbed;
 
-            if (ctx.ItemSlot != null)
+            ctx.IKController.SetGrabTarget(grabbed.transform);
+            targetCtx.IKController.HandOver(ctx.IKController);
+            
+            targetCtx.HeldObject = null;
+            
+            /*if (ctx.ItemSlot != null)
             {
                 grabbed.transform.SetParent(ctx.ItemSlot);
                 grabbed.transform.localPosition = Vector3.zero;
                 grabbed.transform.localRotation = Quaternion.identity;
-            }
+            }*/
 
             ctx.FirePickedUp(grabbed);
         }

@@ -10,7 +10,7 @@ namespace LAS
         {
             DrawDefaultInspector();
 
-            if (GUILayout.Button("Test"))
+            if (GUILayout.Button("Setup"))
             {
                 IKSetup ikSetup = target as IKSetup;
                 ikSetup.Setup();
