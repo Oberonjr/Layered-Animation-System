@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace LAS
 {
+    public enum GrabType
+    {
+        LeftHand,
+        RightHand,
+        Any
+    }
+    
     public class IKGrabbable : MonoBehaviour
     {
         public GrabDataSO grabData;
@@ -62,7 +69,7 @@ namespace LAS
             transform.position = localSpace.position - position;
         }
 
-        public GrabPose GetClosestGrabPose(Transform leftWrist, Transform rightWrist)
+        public GrabPose GetClosestGrabPose(Transform leftWrist, Transform rightWrist, GrabType grabType = GrabType.Any)
         {
             float closestDistance = Mathf.Infinity;
             int closestPose = 0;
@@ -75,15 +82,28 @@ namespace LAS
                 
                 for (int j = 0; j < grabData.grabPoses.Count; j++)
                 {
-                    if (i <= 0)
+                    switch (grabType)
                     {
-                        if (grabData.grabPoses[j].rightHanded)
-                            continue;
-                    }
-                    else
-                    {
-                        if (!grabData.grabPoses[j].rightHanded)
-                            continue;
+                        case GrabType.LeftHand:
+                            if (grabData.grabPoses[j].rightHanded)
+                                continue;
+                            break;
+                        case GrabType.RightHand:
+                            if (!grabData.grabPoses[j].rightHanded)
+                                continue;
+                            break;
+                        case GrabType.Any:
+                            if (i <= 0)
+                            {
+                                if (grabData.grabPoses[j].rightHanded)
+                                    continue;
+                            }
+                            else
+                            {
+                                if (!grabData.grabPoses[j].rightHanded)
+                                    continue;
+                            }
+                            break;
                     }
                     
                     Matrix4x4 localToWorldMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
