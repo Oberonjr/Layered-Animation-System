@@ -6,8 +6,8 @@ namespace LAS
 {
     public class IKController : MonoBehaviour
     {
-        [SerializeField] private IKLookAt lookAt;
-        [SerializeField] private IKGrab grab;
+        public IKLookAt lookAt;
+        public IKGrab grab;
 
         public bool isLookingAtTarget { get; private set; }
         public bool canStartAnim { get; private set; }

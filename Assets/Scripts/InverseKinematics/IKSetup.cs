@@ -22,6 +22,9 @@ namespace LAS
         [Header("Default values")] 
         [SerializeField] private float maxHeadRotation = 70;
         [SerializeField] private float maxTorsoRotation = 30;
+
+        [Space(10)] 
+        [SerializeField] private GrabDataSO restingPoseData;
         
         private GameObject ikRig;
         private GameObject bodyPivot;
@@ -42,6 +45,8 @@ namespace LAS
             ikRig.transform.parent = transform;
             ikRig.transform.name = "IKRig";
             ikRig.transform.localPosition = Vector3.zero;
+            ikRig.transform.localRotation = new Quaternion();
+            
             Rig rig = ikRig.AddComponent<Rig>();
             
             gameObject.AddComponent<RigBuilder>();
@@ -56,6 +61,7 @@ namespace LAS
             bodyPivot.transform.parent = root.transform;
             bodyPivot.name = "BodyPivot";
             bodyPivot.transform.localPosition = Vector3.zero;
+            bodyPivot.transform.localRotation = new Quaternion();
             
             SetupMultiAimConstraint(head, "Head");
             SetupMultiAimConstraint(torso, "Torso");
@@ -95,6 +101,7 @@ namespace LAS
                 legPivot.transform.parent = root.transform;
                 legPivot.name = name + " Pivot";
                 legPivot.transform.localPosition = Vector3.zero;
+                legPivot.transform.localRotation = new Quaternion();
 
                 target.transform.parent = legPivot.transform;
                 hint.transform.parent = legPivot.transform;
@@ -158,11 +165,13 @@ namespace LAS
             targetPivot.transform.parent = bodyPivot.transform;
             targetPivot.name = name + "Pivot";
             targetPivot.transform.position = bone.position;
+            targetPivot.transform.localRotation = new Quaternion();
 
             GameObject target = new GameObject();
             target.transform.parent = targetPivot.transform;
             target.transform.name = name + "Target";
             target.transform.localPosition = targetPivot.transform.forward;
+            target.transform.localRotation = new Quaternion();
 
             WeightedTransform targetTransform;
             targetTransform.transform = target.transform;
@@ -188,19 +197,24 @@ namespace LAS
             
             legTurning.AutoSetup(ikRig.transform);
             
-            grab.AutoSetup(ikRig.transform, leftHand, rightHand);
+            grab.AutoSetup(ikRig.transform, leftHand, rightHand, restingPoseData);
+            
+            IKController controller = root.AddComponent<IKController>();
+
+            controller.lookAt = lookAt;
+            controller.grab = grab;
         }
 
         private void ClearRig()
         {
-            if (transform.Find("IKRig") && ikRig)
-                DestroyImmediate(ikRig.gameObject);
+            if (transform.Find("IKRig"))
+                DestroyImmediate(transform.Find("IKRig").gameObject);
             
             if (rigBuilder)
                 rigBuilder.layers.Clear();
 
             if (!root)
-                return;
+                root = transform.parent.gameObject;
 
             while (root.transform.childCount > 1)
             {
@@ -216,6 +230,9 @@ namespace LAS
             
             if(root.TryGetComponent(out IKGrab grab))
                 DestroyImmediate(grab);
+            
+            if(root.TryGetComponent(out IKController controller))
+                DestroyImmediate(controller);
         }
     }
 }

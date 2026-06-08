@@ -22,6 +22,12 @@ namespace LAS
                 setup.AttachObjectToHand();
             }
 
+            if (GUILayout.Button("Orient hand rotation"))
+            {
+                IKGrabSetup setup = target as IKGrabSetup;
+                setup.OrientRotation();
+            }
+
             GUILayout.Space(10);
             
             if (GUILayout.Button("Set rest pose"))

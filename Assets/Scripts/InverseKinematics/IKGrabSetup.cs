@@ -45,6 +45,14 @@ namespace LAS
             grabController.TogglePreviews();
         }
 
+        public void OrientRotation()
+        {
+            if (isRightHanded)
+                transform.localRotation *= Quaternion.Euler(90, 0, 90);
+            else
+                transform.localRotation *= Quaternion.Euler(90, 0, -90);
+        }
+
         public void SetRestingPose()
         {
             if (!grabController)

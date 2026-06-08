@@ -47,7 +47,6 @@ namespace LAS
         [SerializeField] private TwoBoneIKConstraint rightConstraint;
         
         [Header("Body")] 
-        [SerializeField] private Transform root;
         [SerializeField] private Transform body;
         [SerializeField] private Transform bodyIKPivot;
 
@@ -158,11 +157,11 @@ namespace LAS
 
         private void ResetRotations()
         {
-            root.rotation = body.rotation;
-            body.localRotation = Quaternion.Euler(Vector3.zero);
-            bodyIKPivot.localRotation = Quaternion.Euler(Vector3.zero);
-            rightPivot.localRotation = Quaternion.Euler(Vector3.zero);
-            leftPivot.localRotation =  Quaternion.Euler(Vector3.zero);
+            transform.root.rotation = body.rotation;
+            body.localRotation = new Quaternion();
+            bodyIKPivot.localRotation = new Quaternion();
+            rightPivot.localRotation = new Quaternion();
+            leftPivot.localRotation =  new Quaternion();
         }
 
         private IEnumerator MoveFootCo(FootIKData foot)
@@ -231,7 +230,6 @@ namespace LAS
 
         public void AutoSetup(Transform ikRig)
         {
-            root = transform;
             body = transform.GetChild(0);
             bodyIKPivot = transform.GetChild(3);
             
@@ -243,8 +241,6 @@ namespace LAS
             
             rightPivot = transform.GetChild(2).transform;
             rightConstraint = ikRig.GetChild(3).GetComponent<TwoBoneIKConstraint>();
-            
-
         }
     }
 }
