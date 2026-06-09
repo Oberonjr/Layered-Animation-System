@@ -2166,7 +2166,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 7d79d1e6be1a4f64c9237cf4dbf61063, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -4575,6 +4575,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LAS.IKGrabSetup
   wristToPose: {fileID: 0}
+  grabController: {fileID: 0}
   grabbable: {fileID: 1836071185656337836}
   isRightHanded: 0
 --- !u!114 &1797000282
@@ -4590,6 +4591,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LAS.IKGrabSetup
   wristToPose: {fileID: 0}
+  grabController: {fileID: 0}
   grabbable: {fileID: 0}
   isRightHanded: 0
 --- !u!1001 &1841543333
@@ -5541,7 +5543,7 @@ PrefabInstance:
       objectReference: {fileID: 4900000, guid: 9840db29fd37baf41b54e4a7db49f3a2, type: 3}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: contextHistoryLimit
-      value: 150
+      value: 250
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: dialogueOptions.topK
