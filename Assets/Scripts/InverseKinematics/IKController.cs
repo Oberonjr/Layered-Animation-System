@@ -43,7 +43,7 @@ namespace LAS
         {
             if (!lookAtTarget)
             {
-                //lookAt.ClearTarget();
+                lookAt.ClearTarget();
                 return;
             }
 

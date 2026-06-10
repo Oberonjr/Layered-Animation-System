@@ -449,7 +449,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5648017595608509285, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5761459075640121729, guid: b94629ee6da49c64e977cc8319ef2435, type: 3}
       propertyPath: m_LocalPosition.x
@@ -6427,7 +6427,7 @@ MonoBehaviour:
   torsoRollLimits: 15
   legBehaviour: {fileID: 1897208702}
   rotationSpeed: 360
-  returnRotationSpeed: 45
+  returnRotationSpeed: 180
   accelerationTime: 0.2
   enableLegsThreshold: 0.5
   testTarget: {fileID: 0}

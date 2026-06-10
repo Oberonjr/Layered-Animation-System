@@ -8,9 +8,13 @@ namespace LAS
     {
         public override void OnInspectorGUI()
         {
-            DrawDefaultInspector();            
+            DrawDefaultInspector();
+
+            GUIContent content = new GUIContent();
+            content.text = "Turn around";
+            content.tooltip = "Turns the character 180 degrees";
             
-            if (GUILayout.Button("Turn around"))
+            if (GUILayout.Button(content))
             {
                 IKLookAt lookAt = target as IKLookAt;
                 lookAt.TestTurnAround();

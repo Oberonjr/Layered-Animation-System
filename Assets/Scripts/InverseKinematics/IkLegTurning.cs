@@ -57,9 +57,11 @@ namespace LAS
         private FootIKData rightFoot;
         private FootIKData catchupFoot;
 
-        private Vector3 targetRotation;
         private Vector3 targetAngle;
         private Vector3 startBodyRotation;
+        
+        private Vector3 remainingRotation;
+        private int remainingDirection;
         
         private bool isBlendingLegWeights;
         private bool catchingUp;
@@ -81,24 +83,28 @@ namespace LAS
         {
             if (leftFoot.isGrounded && rightFoot.isGrounded)
             {
-                normalizedRotationSpeed = rotationSpeed / maxStepSize;
+                normalizedRotationSpeed = rotationSpeed / 180;
                 
                 isRotating = false;
                 canStartAnim = false;
                 
-                this.targetRotation = targetRotation - body.eulerAngles;
-                targetAngle = targetRotation;
-                targetAngle = new Vector3(targetAngle.x, Mathf.Abs(targetAngle.y) * direction, targetAngle.z);
-                this.targetRotation = new Vector3(this.targetRotation.x, Mathf.Abs(this.targetRotation.y) * direction,
-                    this.targetRotation.z);
                 
-                //this.targetRotation = targetRotation;
+                targetAngle = targetRotation - body.eulerAngles;
                 
-                /*if(this.targetRotation.y > 180)
-                    this.targetRotation -= new Vector3(0, 360, 0);*/
+                remainingRotation = new Vector3(targetAngle.x, Mathf.Abs(targetAngle.y) * direction, targetAngle.z);
+                
+                Debug.Log("Before reduction: " + remainingRotation);
+                
+                
+                targetAngle = new Vector3(targetAngle.x,
+                    Mathf.Clamp(Mathf.Abs(targetAngle.y), 0, maxStepSize) * direction, targetAngle.z);
 
-                Debug.Log("Leg rotation: " + targetAngle);
-                Debug.Log("Starting leg movement towards " + this.targetRotation);
+                remainingRotation -= targetAngle;
+                remainingDirection = direction;
+                
+                Debug.Log("After: " + remainingRotation);
+                
+                Debug.Log("Starting leg movement towards " + targetAngle);
 
                 bodyRotationValue = 0;
                 
@@ -106,7 +112,7 @@ namespace LAS
 
                 catchingUp = false;
                 
-                if(this.targetRotation.y < 0)
+                if(targetAngle.y < 0)
                     StartCoroutine(MoveFootCo(leftFoot));
                 else
                     StartCoroutine(MoveFootCo(rightFoot));
@@ -185,7 +191,7 @@ namespace LAS
             {
                 //Debug.Log(bodyRotationValue + " > " + walkBlendThreshold);
                 
-                normalizedRotationSpeed = rotationSpeed / maxStepSize;
+                normalizedRotationSpeed = rotationSpeed / 180;
 
                 if (bodyRotationValue >= walkBlendThreshold && !canStartAnim)
                 {
@@ -198,11 +204,11 @@ namespace LAS
                 }
                 
                 Vector3 rotation;
-                rotation = targetRotation * legMovementCurve.Evaluate(timeElapsed) ;
+                rotation = targetAngle * legMovementCurve.Evaluate(timeElapsed) ;
                 
                 foot.pivot.eulerAngles = startRotation + rotation;
 
-                Vector3 bodyTarget = new Vector3(0, targetRotation.y, 0);
+                Vector3 bodyTarget = new Vector3(0, targetAngle.y, 0);
                 body.eulerAngles = startBodyRotation + bodyTarget * legMovementCurve.Evaluate(bodyRotationValue);
                 bodyIKPivot.eulerAngles = startBodyRotation + bodyTarget * legMovementCurve.Evaluate(bodyRotationValue);
                 
@@ -226,6 +232,12 @@ namespace LAS
                 
                 catchingUp = false;
                 foot.isGrounded = true;
+
+                if (Mathf.Abs(remainingRotation.y) > 0)
+                {
+                    RotateTowards(remainingRotation + body.eulerAngles, remainingDirection);
+                    yield break;
+                }
                 
                 ResetRotations();
                 //Debug.Log("Done moving legs");
