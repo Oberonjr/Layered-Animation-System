@@ -50,8 +50,8 @@ namespace LAS
         [SerializeField] private Transform body;
         [SerializeField] private Transform bodyIKPivot;
 
-        [HideInInspector] public bool canStartAnim;
-        [HideInInspector] public bool isRotating;
+        public bool canStartAnim { get; private set; }
+        public bool isRotating { get; private set; }
         
         private FootIKData leftFoot;
         private FootIKData rightFoot;
@@ -75,22 +75,29 @@ namespace LAS
 
             leftFoot.otherFoot = rightFoot;
             rightFoot.otherFoot = leftFoot;
-            
-            normalizedRotationSpeed = rotationSpeed / maxStepSize;
         }
 
-        public void RotateTowards(Vector3 targetRotation)
+        public void RotateTowards(Vector3 targetRotation, int direction = 1)
         {
             if (leftFoot.isGrounded && rightFoot.isGrounded)
             {
-                this.targetRotation = targetRotation - Quaternion.LookRotation(body.forward).eulerAngles;
+                normalizedRotationSpeed = rotationSpeed / maxStepSize;
+                
+                isRotating = false;
+                canStartAnim = false;
+                
+                this.targetRotation = targetRotation - body.eulerAngles;
                 targetAngle = targetRotation;
+                targetAngle = new Vector3(targetAngle.x, Mathf.Abs(targetAngle.y) * direction, targetAngle.z);
+                this.targetRotation = new Vector3(this.targetRotation.x, Mathf.Abs(this.targetRotation.y) * direction,
+                    this.targetRotation.z);
+                
                 //this.targetRotation = targetRotation;
                 
-                if(this.targetRotation.y > 180)
-                    this.targetRotation -= new Vector3(0, 360, 0);
+                /*if(this.targetRotation.y > 180)
+                    this.targetRotation -= new Vector3(0, 360, 0);*/
 
-                Debug.Log("Leg rotation: " + targetRotation);
+                Debug.Log("Leg rotation: " + targetAngle);
                 Debug.Log("Starting leg movement towards " + this.targetRotation);
 
                 bodyRotationValue = 0;
@@ -174,14 +181,21 @@ namespace LAS
 
             foot.isGrounded = false;
             
-            while (Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y) > normalizedRotationSpeed * Time.deltaTime)
+            while (Mathf.Abs(foot.pivot.eulerAngles.y - targetAngle.y) > normalizedRotationSpeed * Time.deltaTime && timeElapsed < 1)
             {
                 //Debug.Log(bodyRotationValue + " > " + walkBlendThreshold);
                 
-                if (bodyRotationValue >= walkBlendThreshold)
+                normalizedRotationSpeed = rotationSpeed / maxStepSize;
+
+                if (bodyRotationValue >= walkBlendThreshold && !canStartAnim)
+                {
                     canStartAnim = true;
-                else
+                    //Debug.Log("Start blending animations");
+                }
+                else if (canStartAnim)
+                {
                     canStartAnim = false;
+                }
                 
                 Vector3 rotation;
                 rotation = targetRotation * legMovementCurve.Evaluate(timeElapsed) ;
@@ -204,14 +218,19 @@ namespace LAS
             }
 
             foot.pivot.localPosition = Vector3.zero;
-            
+
             if (catchingUp)
             {
                 isRotating = false;
                 canStartAnim = false;
                 
+                catchingUp = false;
+                foot.isGrounded = true;
+                
                 ResetRotations();
                 //Debug.Log("Done moving legs");
+
+                yield break;
             }
             
             if (!catchingUp)
@@ -223,9 +242,6 @@ namespace LAS
                 
                 StartCoroutine(MoveFootCo(foot.otherFoot));
             }
-
-            catchingUp = false;
-            foot.isGrounded = true;
         }
 
         public void AutoSetup(Transform ikRig)

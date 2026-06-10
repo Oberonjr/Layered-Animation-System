@@ -92,11 +92,13 @@ namespace LAS
                 BlendWalkAnim(0, 1, ctx);
             }
             
-            if(!ctx.IKController.isLookingAtTarget)
+            if(!ctx.IKController.isLookingAtTarget && !ctx.IKController.canStartAnim)
                 return false;
             
+            Debug.Log("Start walking");
+            
             // Wait until NPC is looking at target before starting to move
-            if (ctx.IKController.isLookingAtTarget && !isDestinationSet)
+            if (!isDestinationSet)
             {
                 if (!ctx.IKController.canStartAnim)
                 {

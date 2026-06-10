@@ -493,7 +493,7 @@ namespace LAS {
         {
             if (llmProvider == null || !llmProvider.IsConnected)
             {
-                Debug.LogError("[NPCManager] LLM provider not available.");
+                //Debug.LogError("[NPCManager] LLM provider not available.");
                 yield break;
             }
 

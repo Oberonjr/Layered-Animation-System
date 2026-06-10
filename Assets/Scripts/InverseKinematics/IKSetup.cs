@@ -170,15 +170,22 @@ namespace LAS
             GameObject target = new GameObject();
             target.transform.parent = targetPivot.transform;
             target.transform.name = name + "Target";
-            target.transform.localPosition = targetPivot.transform.forward;
             target.transform.localRotation = new Quaternion();
+            target.transform.localPosition = Vector3.forward;
 
-            WeightedTransform targetTransform;
-            targetTransform.transform = target.transform;
-            targetTransform.weight = 1;
-            
             constraint.data.constrainedObject = bone;
-            constraint.data.sourceObjects.Add(targetTransform);
+
+            var sources = constraint.data.sourceObjects;
+            
+            
+            sources.Add(new WeightedTransform
+            {
+                transform = target.transform,
+                weight = 1
+            });
+
+            constraint.data.sourceObjects = sources;
+            
             constraint.data.constrainedXAxis = false;
             constraint.data.constrainedYAxis = true;
             constraint.data.constrainedZAxis = false;
@@ -203,6 +210,14 @@ namespace LAS
 
             controller.lookAt = lookAt;
             controller.grab = grab;
+
+            if (root.transform.parent)
+            {
+                if (root.transform.parent.TryGetComponent(out NPCBehaviourController npcController))
+                {
+                    npcController.AutoSetup(controller);
+                }
+            }
         }
 
         private void ClearRig()
