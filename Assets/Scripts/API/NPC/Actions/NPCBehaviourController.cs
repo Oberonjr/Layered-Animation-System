@@ -15,9 +15,6 @@ namespace LAS
     [RequireComponent(typeof(NPCController))]
     public class NPCBehaviourController : MonoBehaviour
     {
-        [Tooltip("IK script that controls where the NPC looks. Auto-assigned if left empty.")]
-        [SerializeField] private IKLookAt lookAtScript;
-
         [SerializeField] private IKController ikController;
         
         [Tooltip("Animator component driving the NPC's animations.")]
@@ -116,6 +113,11 @@ namespace LAS
             FSM.Update();
         }
 
+        public void AutoSetup(IKController controller)
+        {
+            ikController = controller;
+        }
+
         // ── Public action API ─────────────────────────────────────────────────────
 
         /// <summary>Interrupts the current action and navigates to <paramref name="target"/>.</summary>
@@ -195,7 +197,7 @@ namespace LAS
 
             Context.FireHandedObject(obj);
         }
-
+        
         // ── Helpers ───────────────────────────────────────────────────────────────
 
         private int GetNPCIndex() => Context.NPCIndex;

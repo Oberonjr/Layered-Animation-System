@@ -26,23 +26,21 @@ namespace LAS
         
         [Space(10)]
         [SerializeField] GrabDataSO restingPoses;
-
-        public HandIK currentHand { get; private set; }
         
         [Header("Testing")]
-        
         public Transform grabTarget;
-
         public Transform bodyPivot;
         
+        public HandIK currentHand { get; private set; }
+        
+        public UnityEvent OnGrabbed;
+
         private IKGrabbable grabbable;
 
         private GrabPose grabPose;
 
         private Vector3 ikPosition;
         private Quaternion ikRotation;
-        
-        public UnityEvent OnGrabbed;
 
         private bool isResting;
 
@@ -163,30 +161,6 @@ namespace LAS
             grabTarget.SetParent(currentHand.itemSlot, true);
         }
 
-        /*void ApplyRestingValuesToHandStruct()
-        {
-            for (int i = 0; i < 2; i++)
-            {
-                Vector3 position = restingPoses.grabPoses[i].position;
-                Quaternion rotation = restingPoses.grabPoses[i].rotation;
-                Matrix4x4 localToWorldMatrix = Matrix4x4.TRS(transform.position, transform.rotation, Vector3.one);
-                position = localToWorldMatrix.MultiplyPoint3x4(position);
-
-                rotation = transform.rotation * rotation;
-            
-                if (i == 0)
-                {
-                    leftHand.restingPosition = position;
-                    leftHand.restingRotation = rotation;
-                }
-                else
-                {
-                    rightHand.restingPosition = position;
-                    rightHand.restingRotation = rotation;
-                }
-            }
-        }*/
-
         (Vector3, Quaternion) GetRestingValues(int index)
         {
             Vector3 position = restingPoses.grabPoses[index].position;
@@ -204,7 +178,7 @@ namespace LAS
         // EDITOR SCRIPTS
         // ===============================================
         
-        public void AutoSetup(Transform ikRig, Transform leftItemSlot, Transform rightItemSlot)
+        public void AutoSetup(Transform ikRig, Transform leftItemSlot, Transform rightItemSlot, GrabDataSO restingPoseData)
         {
             leftHand = new HandIK();
             leftHand.constraint = ikRig.GetChild(0).GetComponent<TwoBoneIKConstraint>();
@@ -217,6 +191,16 @@ namespace LAS
             rightHand.handTarget = ikRig.GetChild(1).GetChild(0);
             rightHand.itemSlot = rightItemSlot;
             rightHand.constraint.weight = 0;
+
+            restingPoses = restingPoseData;
+            
+            bodyPivot = transform.GetChild(3);
+
+            if (restingPoses.grabPoses.Count > 1)
+                return;
+            
+            restingPoses.grabPoses.Add(new GrabPose(Vector3.zero, new Quaternion()));
+            restingPoses.grabPoses.Add(new GrabPose(Vector3.zero, new Quaternion()));
         }
 
         public void SetRestingPosition(Vector3 position, Quaternion rotation, bool isRightHand)

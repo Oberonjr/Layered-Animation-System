@@ -6,8 +6,8 @@ namespace LAS
 {
     public class IKController : MonoBehaviour
     {
-        [SerializeField] private IKLookAt lookAt;
-        [SerializeField] private IKGrab grab;
+        public IKLookAt lookAt;
+        public IKGrab grab;
 
         public bool isLookingAtTarget { get; private set; }
         public bool canStartAnim { get; private set; }
@@ -29,6 +29,9 @@ namespace LAS
         public void SetLookAtTarget(Transform target)
         {
             lookAtTarget = target;
+            isLookingAtTarget = false;
+            
+            lookAt.LookAt(lookAtTarget);
         }
 
         public void ClearLookAtTarget()
@@ -38,21 +41,14 @@ namespace LAS
 
         public void UpdateLookAt()
         {
-            /*if (isLookingAtTarget && _target)
-            {
-                Debug.Log(isLookingAtTarget);
-                Clear();
-            }*/
-
             if (!lookAtTarget)
             {
                 lookAt.ClearTarget();
                 return;
             }
-            
-            isLookingAtTarget = lookAt.LookAtContinuous(lookAtTarget);
 
-            //canStartAnim = _ikLookAt.canStartAnim;
+            isLookingAtTarget = lookAt.isLookingAtTarget;
+            canStartAnim = lookAt.canStartAnim;
         }
 
         public void EnableLegIK(bool enable)

@@ -50,13 +50,13 @@ namespace LAS
                 Clear();
             }*/
 
-            if (!_target)
+            /*if (!_target)
             {
                 _ikLookAt.ClearTarget();
                 return;
-            }
+            }*/
             
-            isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
+            //isLookingAtTarget = _ikLookAt.LookAtContinuous(_target);
 
             //canStartAnim = _ikLookAt.canStartAnim;
         }

@@ -12,4 +12,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae4c2c968af85ea46935682a754ddbdf, type: 3}
   m_Name: BottleData
   m_EditorClassIdentifier: Assembly-CSharp::LAS.GrabDataSO
-  grabPoses: []
+  grabPoses:
+  - position: {x: -0.079475425, y: 0.010864377, z: -0.15211485}
+    rotation: {x: 0.51197773, y: 0.52972037, z: 0.48772806, w: 0.46839806}
+    rightHanded: 0
+  - position: {x: 0.06272455, y: 0.009964466, z: -0.15501472}
+    rotation: {x: 0.5000001, y: -0.5000001, z: -0.5000001, w: 0.5000001}
+    rightHanded: 1
+  - position: {x: -0.0627248, y: 0.009964466, z: 0.15501456}
+    rotation: {x: -0.5000001, y: 0.5000001, z: -0.5000001, w: 0.5000001}
+    rightHanded: 1
+  - position: {x: 0.07947517, y: 0.010864377, z: 0.15211466}
+    rotation: {x: 0.48772806, y: 0.46839806, z: -0.51197773, w: -0.52972037}
+    rightHanded: 0
+  - position: {x: -0.15501475, y: 0.009964466, z: -0.06272459}
+    rotation: {x: 0, y: 0, z: -0.7071069, w: 0.7071069}
+    rightHanded: 1
+  - position: {x: -0.15211487, y: 0.010864377, z: 0.0794754}
+    rotation: {x: 0.7068987, y: 0.7057763, z: -0.017147094, w: -0.043361425}
+    rightHanded: 0
+  - position: {x: 0.15211487, y: 0.010864377, z: -0.0794754}
+    rotation: {x: 0.017147094, y: 0.043361425, z: 0.7068987, w: 0.7057763}
+    rightHanded: 0
+  - position: {x: 0.15501475, y: 0.009964466, z: 0.06272459}
+    rotation: {x: 0.7071069, y: -0.7071069, z: 0, w: 0}
+    rightHanded: 1
