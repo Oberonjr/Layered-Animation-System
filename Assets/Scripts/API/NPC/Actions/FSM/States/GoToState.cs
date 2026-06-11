@@ -95,7 +95,7 @@ namespace LAS
             if(!ctx.IKController.isLookingAtTarget && !ctx.IKController.canStartAnim)
                 return false;
             
-            Debug.Log("Start walking");
+            //Debug.Log("Start walking");
             
             // Wait until NPC is looking at target before starting to move
             if (!isDestinationSet)

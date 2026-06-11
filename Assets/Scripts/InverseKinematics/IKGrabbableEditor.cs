@@ -16,6 +16,12 @@ namespace LAS
                 grabbable.DrawPreviews();
 
             }
+
+            if (GUILayout.Button("Clear grab poses"))
+            {
+                IKGrabbable grabbable = target as IKGrabbable;
+                grabbable.ClearData();
+            }
         }
     }
 }

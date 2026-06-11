@@ -1,6 +1,8 @@
 using System;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
+using UnityEngine.Rendering.VirtualTexturing;
 
 namespace LAS
 {
@@ -13,18 +15,14 @@ namespace LAS
         [SerializeField] private Transform rightHand;
         [Space(10)]
         [SerializeField] private Transform head;
-        [SerializeField] private Transform torso;
-
-        [Header("Effectors")] 
-        [SerializeField] private Mesh targetEffectorMesh;
-        [SerializeField] private Mesh hintEffectorMesh;
-
-        [Header("Default values")] 
-        [SerializeField] private float maxHeadRotation = 70;
-        [SerializeField] private float maxTorsoRotation = 30;
+        [Tooltip("Assign the base of the character's spine")]
+        [SerializeField] private Transform spine;
 
         [Space(10)] 
         [SerializeField] private GrabDataSO restingPoseData;
+        
+        private Mesh targetEffectorMesh;
+        private Mesh hintEffectorMesh;
         
         private GameObject ikRig;
         private GameObject bodyPivot;
@@ -39,6 +37,14 @@ namespace LAS
         {
             ClearRig();
 
+            if (!transform.parent)
+            {
+                GameObject newRoot = new GameObject("IKCharacterRoot");
+                newRoot.transform.position = transform.position;
+                transform.SetParent(newRoot.transform);
+                transform.localPosition = Vector3.zero;
+            }
+            
             root = transform.parent.gameObject;
             
             ikRig = new GameObject();
@@ -64,7 +70,7 @@ namespace LAS
             bodyPivot.transform.localRotation = new Quaternion();
             
             SetupMultiAimConstraint(head, "Head");
-            SetupMultiAimConstraint(torso, "Torso");
+            SetupMultiAimConstraint(spine, "Torso");
             
             rigBuilder.layers.Clear();
             rigBuilder.layers.Add(new RigLayer(rig, true));
@@ -103,12 +109,18 @@ namespace LAS
                 legPivot.transform.localPosition = Vector3.zero;
                 legPivot.transform.localRotation = new Quaternion();
 
+                target.AddComponent<IKTarget>().constraint = constraint;
+                target.GetComponent<IKTarget>().isIKEnabled = true;
+                
                 target.transform.parent = legPivot.transform;
                 hint.transform.parent = legPivot.transform;
             }
             else
             {
-                target.AddComponent<IKGrabSetup>();
+                target.AddComponent<IKGrabSetup>().isIKEnabled = false;
+
+                if (name.Contains("Right"))
+                    target.GetComponent<IKGrabSetup>().isRightHanded = true;
             }
             
             Vector3 rootPosition = constraint.data.root.position;
@@ -135,6 +147,12 @@ namespace LAS
             if (rig)
             {
                 RigEffectorData.Style targetStyle = new RigEffectorData.Style();
+
+                if (!targetEffectorMesh)
+                    targetEffectorMesh =
+                        AssetDatabase.LoadAssetAtPath<Mesh>(
+                            "Packages/com.unity.animation.rigging/Editor/Shapes/BoxEffector.asset");
+                
                 targetStyle.shape = targetEffectorMesh;
                 targetStyle.color = new Color(1f, 0f, 0f, 0.5f);
                 targetStyle.position = Vector3.zero;
@@ -143,6 +161,12 @@ namespace LAS
                 rig.AddEffector(constraint.data.target, targetStyle);
                 
                 RigEffectorData.Style hintStyle = new RigEffectorData.Style();
+
+                if (!hintEffectorMesh)
+                    hintEffectorMesh =
+                        AssetDatabase.LoadAssetAtPath<Mesh>(
+                            "Packages/com.unity.animation.rigging/Editor/Shapes/BallEffector.asset");
+                
                 hintStyle.shape = hintEffectorMesh;
                 hintStyle.color = new Color(1f, 0f, 0f, 0.5f);
                 hintStyle.position = Vector3.zero;
@@ -189,7 +213,7 @@ namespace LAS
             constraint.data.constrainedXAxis = false;
             constraint.data.constrainedYAxis = true;
             constraint.data.constrainedZAxis = false;
-            constraint.data.limits = new Vector2(-maxHeadRotation, maxHeadRotation);
+            constraint.data.limits = new Vector2(-180, 180);
         }
 
         private void SetupScripts()
@@ -200,7 +224,7 @@ namespace LAS
             
             IKGrab grab = root.AddComponent<IKGrab>();
             
-            lookAt.AutoSetup(head, torso);
+            lookAt.AutoSetup(head, spine);
             
             legTurning.AutoSetup(ikRig.transform);
             
@@ -229,7 +253,12 @@ namespace LAS
                 rigBuilder.layers.Clear();
 
             if (!root)
-                root = transform.parent.gameObject;
+            {
+                if (transform.parent)
+                    root = transform.parent.gameObject;
+                else
+                    return;
+            }
 
             while (root.transform.childCount > 1)
             {

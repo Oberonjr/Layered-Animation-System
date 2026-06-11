@@ -26,12 +26,12 @@ namespace LAS
         
         [Space(10)]
         [SerializeField] GrabDataSO restingPoses;
-
-        public HandIK currentHand { get; private set; }
         
         [Header("Testing")]
         public Transform grabTarget;
         public Transform bodyPivot;
+        
+        public HandIK currentHand { get; private set; }
         
         public UnityEvent OnGrabbed;
 

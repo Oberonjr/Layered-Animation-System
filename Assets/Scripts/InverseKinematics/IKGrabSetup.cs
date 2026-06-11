@@ -1,5 +1,6 @@
-using Unity.Properties;
-using UnityEditor;
+using System;
+using NUnit.Framework.Constraints;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
@@ -7,24 +8,33 @@ namespace LAS
 {
     public class IKGrabSetup : MonoBehaviour
     {
-        [SerializeField] private Transform wristToPose;
+        //[SerializeField] private Transform wristToPose;
 
         [SerializeField] private IKGrab grabController;
         
-        [SerializeField] private IKGrabbable grabbable;
+        [SerializeField] private IKGrabbable objectToPose;
 
-        [SerializeField] private bool isRightHanded;
+        public bool isRightHanded;
 
+        [Space(10)]
+        [ReadOnly] public bool isIKEnabled;
 
-        public void ToggleIK()
+        private TwoBoneIKConstraint constraint;
+
+        private void Awake()
         {
             if (transform.parent.TryGetComponent(out TwoBoneIKConstraint constraint))
             {
-                if(constraint.weight == 1)
-                    constraint.weight = 0;
-                else
-                    constraint.weight = 1;
+                this.constraint = constraint;
+                isIKEnabled = constraint.weight == 1;
             }
+        }
+
+        public void ToggleIK()
+        {
+            constraint.weight = constraint.weight == 0 ? 1 : 0;
+            
+            isIKEnabled = constraint.weight == 1;
         }
 
         public void ShowRestingPoses()
@@ -68,19 +78,12 @@ namespace LAS
                 }
             }
 
-            if (wristToPose)
-            {
-                grabController.SetRestingPosition(wristToPose.position, wristToPose.rotation, isRightHanded);
-                return;
-            }
-            
-            // If wristToPose is null, default to transform
             grabController.SetRestingPosition(transform.position, transform.rotation, isRightHanded);
         }
 
         public void AttachObjectToHand()
         {
-            if (!grabbable)
+            if (!objectToPose)
             {
                 Debug.LogError("Grabbable must be set to attach it to hand");
                 return;
@@ -99,49 +102,43 @@ namespace LAS
                 }
             }
             
-            grabController.SetTarget(grabbable.transform, isRightHanded ? GrabType.RightHand :  GrabType.LeftHand);
+            grabController.SetTarget(objectToPose.transform, isRightHanded ? GrabType.RightHand :  GrabType.LeftHand);
             grabController.GrabObject(true);
         }
         
         public void AddGrabPose()
         {
-            if (!grabbable)
+            if (!objectToPose)
             {
                 Debug.LogError("Pose can't be set because grabbable object is null!");
                 return;
             }
             
-            if (wristToPose)
-            {
-                grabbable.AddGrabPose(wristToPose.position, wristToPose.rotation, isRightHanded);
-                return;
-            }
-            
             // If wristToPose is null, default to transform
-            grabbable.AddGrabPose(transform.position, transform.rotation, isRightHanded);
+            objectToPose.AddGrabPose(transform.position, transform.rotation, isRightHanded);
             
         }
 
         public void TogglePosePreviews()
         {
-            if (!grabbable)
+            if (!objectToPose)
             {
                 Debug.LogError("Pose previews cannot be shown because grabbable object is null!");
                 return;
             }
             
-            grabbable.DrawPreviews();
+            objectToPose.DrawPreviews();
         }
 
         public void ClearData()
         {
-            if (!grabbable)
+            if (!objectToPose)
             {
                 Debug.LogError("Pose data can't be cleared because grabbable object is null!");
                 return;
             }
             
-            grabbable.ClearData();
+            objectToPose.ClearData();
         }
     }
 }

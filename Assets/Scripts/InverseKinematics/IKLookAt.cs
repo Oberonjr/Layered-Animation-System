@@ -26,7 +26,7 @@ public class IKLookAt : MonoBehaviour
     
     [Header("Rotation parameters")]
     [Tooltip("Animation curve rotation speed will be evaluated against while accelerating/decelerating rotation")]
-    [SerializeField] private AnimationCurve smoothRotationCurve;
+    [SerializeField] private AnimationCurve smoothRotation;
     [Tooltip("Rotation speed (degrees / seconds) applied to upper body")]
     [SerializeField] private float rotationSpeed = 360;
     [Tooltip("Rotation speed (degrees / seconds) while 'returning' to base rotation (looking forward)")] 
@@ -35,10 +35,11 @@ public class IKLookAt : MonoBehaviour
     [Tooltip("Duration (in seconds) to reach maximum rotation speed")]
     [SerializeField] private float accelerationTime = 0.2f;
     
-    [Tooltip("Threshold to enable lower body movement \n - 0 is immediately \n - 1 is when the upper body has clamped")]
+    [Tooltip("Threshold to enable lower body movement when a turn animation is triggered \n - 0 is immediately \n - 1 is when the upper body has clamped")]
     [SerializeField][Range(0, 1)] private float enableLegsThreshold = 0.5f;
 
     [Header("Testing")]
+    [Tooltip("Can be set to test IK functionality, will be auto assigned by the turn around button if left empty")]
     [SerializeField] private Transform testTarget;
     
     [HideInInspector] public bool canStartAnim;
@@ -48,9 +49,6 @@ public class IKLookAt : MonoBehaviour
     
     private Vector3 targetRotation;
 
-    private Vector3 headStart;
-    private Vector3 torsoStart;
-    
     private int rotateDirection;
 
     private float headCoefficient;
@@ -66,7 +64,6 @@ public class IKLookAt : MonoBehaviour
     private bool hasAccelerated;
 
     private bool isDebugging;
-
 
     private void Start()
     {
@@ -157,7 +154,7 @@ public class IKLookAt : MonoBehaviour
         lookAtTarget = null;
     }
 
-    public void LookAtContinuous()
+    private void LookAtContinuous()
     {
         Quaternion angle = new Quaternion();
         
@@ -183,8 +180,9 @@ public class IKLookAt : MonoBehaviour
             areLegsTurning = true;
             isReturning = true;
             actualRotationSpeed = returnRotationSpeed;
+            
+            Debug.Log("Is retruning");
         }
-
 
         if (hasAccelerated)
         {
@@ -193,12 +191,12 @@ public class IKLookAt : MonoBehaviour
             if (isReturning)
             {
                 accelerationValue = Mathf.Abs(targetAngle.y) / (returnRotationSpeed * Time.deltaTime / accelerationTime);
-                actualRotationSpeed = returnRotationSpeed * smoothRotationCurve.Evaluate(Mathf.Clamp(accelerationValue, 0, 1));
+                actualRotationSpeed = returnRotationSpeed * smoothRotation.Evaluate(Mathf.Clamp(accelerationValue, 0, 1));
             }
             else
             {
                 accelerationValue = Mathf.Abs(targetAngle.y) / (rotationSpeed * Time.deltaTime / accelerationTime);
-                actualRotationSpeed = rotationSpeed * smoothRotationCurve.Evaluate(Mathf.Clamp(accelerationValue, 0, 1));
+                actualRotationSpeed = rotationSpeed * smoothRotation.Evaluate(Mathf.Clamp(accelerationValue, 0, 1));
             }
         }
         
@@ -243,9 +241,11 @@ public class IKLookAt : MonoBehaviour
         float timeElapsed = 0;
         
         // Keep looping until the end of the headRotationCurve is reached
-        while (timeElapsed < smoothRotationCurve[smoothRotationCurve.length - 1].time)
+        while (timeElapsed < smoothRotation[smoothRotation.length - 1].time)
         {
-            actualRotationSpeed = rotationSpeed * smoothRotationCurve.Evaluate(timeElapsed);
+            actualRotationSpeed = rotationSpeed * smoothRotation.Evaluate(timeElapsed);
+            
+            //Debug.Log(actualRotationSpeed);
             
             timeElapsed += Time.deltaTime * (1 / accelerationTime);
             
@@ -267,7 +267,7 @@ public class IKLookAt : MonoBehaviour
 
         legBehaviour = GetComponent<IkLegTurning>();
 
-        smoothRotationCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
+        smoothRotation = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
     }
     
     private Vector3 ClampRotation(Vector3 vectorToClamp, Vector3 clampLimits)
