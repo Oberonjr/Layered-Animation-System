@@ -5487,19 +5487,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxConsecutiveNPCMessages
-      value: 150
+      value: 111
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: maxTimeBetweenNPCMessages
-      value: 8
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: minTimeBetweenNPCMessages
-      value: 6
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: playerIdleTimeBeforePrompt
-      value: 7
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 7115038337931981018, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: questionResponseProbability
@@ -5540,7 +5540,7 @@ PrefabInstance:
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: scenarioConfigFile
       value: 
-      objectReference: {fileID: 4900000, guid: b0af929d73faf92459cef992c654ff84, type: 3}
+      objectReference: {fileID: 4900000, guid: 9840db29fd37baf41b54e4a7db49f3a2, type: 3}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: contextHistoryLimit
       value: 250
@@ -5571,20 +5571,28 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcCharacterMap._serializedList.Array.data[0].Key
-      value: Charles Dickens
+      value: Dr. Sarah Chen
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcCharacterMap._serializedList.Array.data[1].Key
-      value: Bob Korovo
+      value: Michael Rodriguez
+      objectReference: {fileID: 0}
+    - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
+      propertyPath: npcCharacterMap._serializedList.Array.data[2].Key
+      value: Michael Rodriguez
+      objectReference: {fileID: 0}
+    - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
+      propertyPath: npcCharacterMap._serializedList.Array.data[3].Key
+      value: Michael Rodriguez
       objectReference: {fileID: 0}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcCharacterMap._serializedList.Array.data[0].Value
       value: 
-      objectReference: {fileID: 120725381}
+      objectReference: {fileID: 1797000277}
     - target: {fileID: 7646918861077508990, guid: 2be0217289192c5468dce0d8f08389f1, type: 3}
       propertyPath: npcCharacterMap._serializedList.Array.data[1].Value
       value: 
-      objectReference: {fileID: 1797000277}
+      objectReference: {fileID: 120725381}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

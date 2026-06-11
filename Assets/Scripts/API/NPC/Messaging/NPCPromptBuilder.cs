@@ -232,11 +232,21 @@ namespace LAS
             {
                 var msg = _history[i];
                 if (msg.type == MessageType.Player)
-                    messages.Add(new LLMMessage { role = "user",      content = msg.message });
+                    messages.Add(new LLMMessage { role = "user", content = msg.message });
                 else if (msg.type == MessageType.NPC)
-                    messages.Add(new LLMMessage { role = "assistant", content = $"{msg.speaker}: {msg.message}" });
+                {
+                    int npcIdx = _npcs.FindIndex(n => n.npcName == msg.speaker);
+                    string histJson = $"{{\"npc_index\": {(npcIdx >= 0 ? npcIdx : 0)}, \"dialogue\": \"{EscapeJsonString(msg.message)}\", \"internal_thought\": \"none\"}}";
+                    messages.Add(new LLMMessage { role = "assistant", content = histJson });
+                }
             }
             return messages.ToArray();
+        }
+
+        private static string EscapeJsonString(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
         }
 
         private string BuildDialogueUserContent(ConversationTurn turn)
@@ -266,6 +276,9 @@ namespace LAS
 
             sb.AppendLine(BuildCurrentInputSection(turn));
             AppendSpeakerSection(sb, turn);
+
+            sb.AppendLine();
+            sb.Append("Output ONLY valid JSON — no text outside the braces: {\"npc_index\": <int>, \"dialogue\": \"<spoken words>\", \"internal_thought\": \"<intended action or none>\"}");
 
             return sb.ToString().TrimEnd();
         }
