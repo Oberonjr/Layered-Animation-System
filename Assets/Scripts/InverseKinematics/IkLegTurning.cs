@@ -26,7 +26,7 @@ namespace LAS
         [Header("Rotation parameters")]
         // How fast the legs rotate in degrees per second
         [Tooltip("Rotation speed in degrees / second")]
-        [SerializeField] private float rotationSpeed = 540;
+        [SerializeField] private float lowerBodyRotationSpeed = 540;
         
         // Maximum character step size in degrees
         [Tooltip("Maximum rotation (in degrees) the character can turn with one 'step'")]
@@ -35,10 +35,10 @@ namespace LAS
         // This curve determines the timing/speed of the rotation
         [Tooltip("The curve which leg rotation (in degrees, not rotation speed) will be evaluated against \n" +
                  "Keyframe value is multiplied by the target rotation")]
-        [SerializeField] private AnimationCurve legMovement;
+        [SerializeField] private AnimationCurve legRotationCurve;
         [Tooltip("The curve which 'maxFootHeight' will be evaluated against during the rotation \n" +
                  "Keyframe value is multiplied by maxFootHeight")]
-        [SerializeField] private AnimationCurve legVerticalPosition;
+        [SerializeField] private AnimationCurve legVerticalPositionCurve;
         [Tooltip("This value will be multiplied with the value of 'legVerticalPositionCurve' to get the vertical position of a foot during rotation")]
         [SerializeField] private float maxFootHeight = 0.1f;
         
@@ -91,7 +91,7 @@ namespace LAS
         {
             if (leftFoot.isGrounded && rightFoot.isGrounded)
             {
-                normalizedRotationSpeed = rotationSpeed / 180;
+                normalizedRotationSpeed = lowerBodyRotationSpeed / 180;
                 
                 isRotating = false;
                 canStartAnim = false;
@@ -199,7 +199,7 @@ namespace LAS
             {
                 //Debug.Log(bodyRotationValue + " > " + walkBlendThreshold);
                 
-                normalizedRotationSpeed = rotationSpeed / 180;
+                normalizedRotationSpeed = lowerBodyRotationSpeed / 180;
 
                 if (bodyRotationValue >= walkBlendThreshold && !canStartAnim)
                 {
@@ -212,15 +212,15 @@ namespace LAS
                 }
                 
                 Vector3 rotation;
-                rotation = targetAngle * legMovement.Evaluate(timeElapsed) ;
+                rotation = targetAngle * legRotationCurve.Evaluate(timeElapsed) ;
                 
                 foot.pivot.eulerAngles = startRotation + rotation;
 
                 Vector3 bodyTarget = new Vector3(0, targetAngle.y, 0);
-                body.eulerAngles = startBodyRotation + bodyTarget * legMovement.Evaluate(bodyRotationValue);
-                bodyIKPivot.eulerAngles = startBodyRotation + bodyTarget * legMovement.Evaluate(bodyRotationValue);
+                body.eulerAngles = startBodyRotation + bodyTarget * legRotationCurve.Evaluate(bodyRotationValue);
+                bodyIKPivot.eulerAngles = startBodyRotation + bodyTarget * legRotationCurve.Evaluate(bodyRotationValue);
                 
-                footHeight = legVerticalPosition.Evaluate(timeElapsed) * maxFootHeight;
+                footHeight = legVerticalPositionCurve.Evaluate(timeElapsed) * maxFootHeight;
                 foot.pivot.localPosition = Vector3.up * footHeight;
 
                 float delta = Time.deltaTime * normalizedRotationSpeed;
@@ -269,8 +269,8 @@ namespace LAS
             body = transform.GetChild(0);
             bodyIKPivot = transform.GetChild(3);
             
-            legMovement = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
-            legVerticalPosition = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.5f, 1),  new Keyframe(1, 0));
+            legRotationCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(1, 1));
+            legVerticalPositionCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.5f, 1),  new Keyframe(1, 0));
 
             leftPivot = transform.GetChild(1).transform;
             leftConstraint = ikRig.GetChild(2).GetComponent<TwoBoneIKConstraint>();
