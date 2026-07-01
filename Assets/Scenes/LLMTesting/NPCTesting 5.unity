@@ -7668,7 +7668,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  rotationSpeed: 810
+  rotationSpeed: 1440
   returnRotationSpeed: 10
   accelerationTime: 0.2
   enableLegsThreshold: 0.5
