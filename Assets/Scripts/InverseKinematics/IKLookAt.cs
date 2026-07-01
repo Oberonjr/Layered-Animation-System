@@ -31,6 +31,10 @@ public class IKLookAt : MonoBehaviour
     [SerializeField] private float rotationSpeed = 360;
     [Tooltip("Rotation speed (degrees / seconds) while 'returning' to base rotation (looking forward)")] 
     [SerializeField] private float returnRotationSpeed = 45;
+    [Tooltip("Set this to true if the NPCs have issues executing queued actions,\n valid especially for high framerate scenarios. \n Whether or not to use a constant angle for the clearing of the \n target of the LookAtContinuous function.")]
+    [SerializeField] private bool useConstantAngle = true;
+    [Tooltip("The constant angle to be used if the above bool is ticked true. \n This stops looking if the NPC is looking close enough to its target")]
+    [SerializeField] private float constantAngle = 2f;
     
     [Tooltip("Duration (in seconds) to reach maximum rotation speed")]
     [SerializeField] private float accelerationTime = 0.2f;
@@ -85,6 +89,8 @@ public class IKLookAt : MonoBehaviour
         LookAtContinuous();
     }
 
+    private Coroutine _accelerateCo;
+
     public void LookAt(Transform lookAtTarget)
     {
         actualRotationSpeed = 0;
@@ -124,8 +130,8 @@ public class IKLookAt : MonoBehaviour
         }
         
         //Debug.Log("Legs turn: " + willLegsTurn);
-        
-        StartCoroutine(AccelerateRotationCo());
+        if(_accelerateCo != null) StopCoroutine(_accelerateCo);
+        _accelerateCo = StartCoroutine(AccelerateRotationCo());
         
         this.lookAtTarget = lookAtTarget;
     }
@@ -209,8 +215,16 @@ public class IKLookAt : MonoBehaviour
         
         RotateHead(targetRotation);
         RotateTorso(targetRotation);
-        
-        if (Mathf.Abs(angle.eulerAngles.y - lookAngle.y) < rotationSpeed * Time.deltaTime)
+        float stoppingAngle;
+        if (useConstantAngle)
+        {
+            stoppingAngle = constantAngle;
+        }
+        else
+        {
+            stoppingAngle = rotationSpeed * Time.deltaTime;
+        }
+        if (Mathf.Abs(angle.eulerAngles.y - lookAngle.y) < stoppingAngle)
         {
             if (!legBehaviour.isRotating && !isLookingAtTarget)
             {

@@ -97,7 +97,12 @@ namespace LAS
                 BlendWalkAnim(0, 1, ctx);
             }
             
-            if(_needsLookAt && !ctx.IKController.isLookingAtTarget && !ctx.IKController.canStartAnim)
+            // Also accept if the body is already facing the target closely enough —
+            // IKLookAt's settlement check scales with Time.deltaTime and can miss at high framerates.
+            bool bodyFacingTarget = Vector3.Angle(ctx.Agent.transform.forward,
+                (_target.position - ctx.Agent.transform.position).normalized) < 25f;
+
+            if(_needsLookAt && !ctx.IKController.isLookingAtTarget && !bodyFacingTarget)
                 return false;
             
             //Debug.Log("Start walking");
