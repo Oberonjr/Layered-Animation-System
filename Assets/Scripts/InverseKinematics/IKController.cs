@@ -15,7 +15,10 @@ namespace LAS
         private Transform lookAtTarget;
 
         public bool hasGrabbed;
-        
+
+        private float _lastLookAtRetrigger = -999f;
+        private const float LookAtRetriggerInterval = 0.2f;
+
         private void Awake()
         {
             grab.OnGrabbed.AddListener(OnGrabbed);
@@ -30,7 +33,7 @@ namespace LAS
         {
             lookAtTarget = target;
             isLookingAtTarget = false;
-            
+            _lastLookAtRetrigger = Time.time;
             lookAt.LookAt(lookAtTarget);
         }
 
@@ -44,10 +47,21 @@ namespace LAS
             if (!lookAtTarget)
             {
                 lookAt.ClearTarget();
+                isLookingAtTarget = false;
                 return;
             }
 
-            isLookingAtTarget = lookAt.isLookingAtTarget;
+            // Latch true on first settle — don't reset it just because LookAt() re-triggered IKLookAt.
+            if (lookAt.isLookingAtTarget)
+                isLookingAtTarget = true;
+
+            // Re-trigger at a fixed interval to maintain head tracking without accumulating coroutines.
+            if (isLookingAtTarget && Time.time - _lastLookAtRetrigger >= LookAtRetriggerInterval)
+            {
+                lookAt.LookAt(lookAtTarget);
+                _lastLookAtRetrigger = Time.time;
+            }
+
             canStartAnim = lookAt.canStartAnim;
         }
 

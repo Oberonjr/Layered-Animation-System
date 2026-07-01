@@ -1,16 +1,15 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 namespace LAS
 {
     /// <summary>
     /// Navigates the NPC back to their idle position (if set), then resets gaze to the player.
+    /// Delegates movement to GoToState so animation blend and leg IK are handled consistently.
     /// If no idle position is assigned, completes immediately.
     /// </summary>
     public class ReturnToIdleState : NPCActionState
     {
-        private float _startTime;
-        private bool _navigating;
+        private GoToState _goTo;
 
         public ReturnToIdleState() : base(null) { }
         public ReturnToIdleState(NPCActionDefinition def) : base(def) { }
@@ -21,40 +20,31 @@ namespace LAS
 
             if (ctx.IdlePosition != null)
             {
-                ctx.IKController.SetLookAtTarget(ctx.IdlePosition);
-                ctx.Agent.stoppingDistance = 0f;
-                ctx.Agent.SetDestination(ctx.IdlePosition.position);
-                _startTime  = Time.time;
-                _navigating = true;
-            }
-            else
-            {
-                _navigating = false;
+                _goTo = new GoToState(ctx.IdlePosition);
+                _goTo.EnterState(ctx);
             }
         }
 
         public override bool UpdateState(NPCBehaviourContext ctx)
         {
-            if (!_navigating) return Complete(ctx);
+            if (_goTo == null) return Complete(ctx);
 
-            if (Time.time - _startTime > ctx.GoToTimeoutSeconds)
+            if (_goTo.UpdateState(ctx))
             {
-                Debug.LogWarning($"[{ctx.NPCName}] ReturnToIdle: navigation timed out.");
+                _goTo.ExitState(ctx);
+                _goTo = null;
                 return Complete(ctx);
             }
-
-            if (ctx.Agent.pathPending) return false;
-
-            if (ctx.Agent.pathStatus == NavMeshPathStatus.PathInvalid
-                || ctx.Agent.remainingDistance <= ctx.ArrivalDistance)
-                return Complete(ctx);
-
             return false;
         }
 
         public override void ExitState(NPCBehaviourContext ctx)
         {
-            if (ctx.Agent.hasPath) ctx.Agent.ResetPath();
+            if (_goTo != null)
+            {
+                _goTo.ExitState(ctx);
+                _goTo = null;
+            }
         }
 
         private bool Complete(NPCBehaviourContext ctx)

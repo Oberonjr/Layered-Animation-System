@@ -1,3 +1,4 @@
+using System;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.AI;
@@ -21,11 +22,12 @@ namespace LAS
         private bool _ready;
         private bool _alreadyInRange;
         private bool _walkStarted;
+        private bool _needsLookAt;
 
         private bool isDestinationSet;
 
         private const float BlendDuration = 0.3f;
-        private bool _isBlending;
+        private Tweener _blendTween;
 
 
         public GoToState(Transform target, float rangeOverride = -1f) : base(null)
@@ -74,8 +76,11 @@ namespace LAS
                 _alreadyInRange = true;
                 return;
             }
-
-            ctx.IKController.SetLookAtTarget(_target);
+            if(Vector3.Angle(_target.position - ctx.Agent.transform.position, ctx.Agent.transform.forward) > 15)
+            {
+                ctx.IKController.SetLookAtTarget(_target);
+                _needsLookAt = true;
+            }
             ctx.Agent.stoppingDistance = _range;
             _startTime = Time.time;
             _ready = true;
@@ -92,7 +97,7 @@ namespace LAS
                 BlendWalkAnim(0, 1, ctx);
             }
             
-            if(!ctx.IKController.isLookingAtTarget && !ctx.IKController.canStartAnim)
+            if(_needsLookAt && !ctx.IKController.isLookingAtTarget && !ctx.IKController.canStartAnim)
                 return false;
             
             //Debug.Log("Start walking");
@@ -127,7 +132,11 @@ namespace LAS
                 return true;
             }
 
-            if (ctx.Agent.remainingDistance <= _range)
+            float euclideanDist = Vector3.Distance(ctx.Agent.transform.position, _target.position);
+            bool pathArrived   = ctx.Agent.remainingDistance <= _range;
+            bool stoppedInRange = ctx.Agent.velocity.sqrMagnitude < 0.01f && euclideanDist <= _range;
+
+            if (pathArrived || stoppedInRange)
             {
                 ctx.FireArrivedAtTarget(_target);
                 return true;
@@ -149,18 +158,15 @@ namespace LAS
 
         private void BlendWalkAnim(float start, float end, NPCBehaviourContext ctx)
         {
-            if (_isBlending || Mathf.Abs(ctx.Animator.GetFloat("Blend") - start) > 0.1f)
+            _blendTween?.Kill();
+            float currentBlend = ctx.Animator.GetFloat("Blend");
+            if (Mathf.Approximately(currentBlend, end))
                 return;
 
-            _isBlending = true;
-
-            DOVirtual.Float(start, end, BlendDuration, value =>
+            _blendTween = DOVirtual.Float(currentBlend, end, BlendDuration, value =>
             {
                 ctx.Animator.SetFloat("Blend", value);
-            }).OnComplete(() =>
-            {
-                _isBlending = false;
-            });
+            }).OnComplete(() => _blendTween = null);
         }
     }
 }

@@ -38,8 +38,11 @@ namespace LAS
                 return;
             
             var targetCtx = _targetNPC.Context;
-            if (targetCtx == null || targetCtx.ItemSlot == null) 
+            if (targetCtx == null || targetCtx.ItemSlot == null)
+            {
+                Debug.LogWarning($"[{ctx.NPCName}] HandToNPC: no target context or item slot assigned.");
                 return;
+            }
             
             var transferring = ctx.HeldObject;
 

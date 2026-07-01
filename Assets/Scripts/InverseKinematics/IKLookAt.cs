@@ -107,8 +107,8 @@ public class IKLookAt : MonoBehaviour
         if (!IsClamped(headBone.localEulerAngles.y + targetAngle.y * headCoefficient, headYawLimits)
             || !IsClamped(torsoBone.localEulerAngles.y + targetAngle.y * torsoCoefficient, torsoYawLimits))
         {
-            Debug.LogWarning($"headClamp: {headBone.localEulerAngles.y + targetAngle.y * headCoefficient}");
-            Debug.LogWarning($"torsoClamp: {torsoBone.localEulerAngles.y + targetAngle.y * torsoCoefficient}");
+            //Debug.LogWarning($"headClamp: {headBone.localEulerAngles.y + targetAngle.y * headCoefficient}");
+            //Debug.LogWarning($"torsoClamp: {torsoBone.localEulerAngles.y + targetAngle.y * torsoCoefficient}");
         }
         
         rotateDirection = targetAngle.y < 0 ? -1 : 1;
@@ -255,7 +255,7 @@ public class IKLookAt : MonoBehaviour
         actualRotationSpeed = rotationSpeed;
         hasAccelerated = true;
         
-        Debug.Log("Finished look at: " + headBone.eulerAngles);
+        //Debug.Log("Finished look at: " + headBone.eulerAngles);
     }
 
     // Called by IKSetup during runtime, not to be used anywhere else.
