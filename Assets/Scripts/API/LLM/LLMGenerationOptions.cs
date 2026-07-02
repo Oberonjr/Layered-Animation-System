@@ -17,7 +17,7 @@ namespace LAS
         [Tooltip("Limits word choices to the most likely options (0–1). Lower = more focused, higher = more varied.")]
         [Range(0.1f, 1.0f)] public float topP = 0.9f;
 
-        [Tooltip("How many word options the AI considers at each step. Lower = more predictable. Not all providers support this.")]
+        [Tooltip("How many word options the AI considers at each step. Lower = more predictable. Ollama only — silently ignored by OpenAI, DeepSeek, Mistral, and other OpenAI-compatible providers.")]
         [Range(1f, 100f)] public float topK = 40f;
 
         [Tooltip("Maximum number of tokens to generate. Use low values (e.g. 80) for classification steps.")]
