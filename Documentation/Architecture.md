@@ -30,7 +30,7 @@ LAS is a Unity-based NPC AI system that drives character dialogue and physical b
 
 - **Two-step LLM**: Dialogue generation and action classification are separate LLM calls with different temperature settings, so creative conversation and deterministic action selection don't interfere.
 - **Queue-based FSM**: Physical actions run through a per-NPC finite state machine that sequences multi-step behaviours (walk → pick up → hand over) without nested coroutines.
-- **ScriptableObject action definitions**: Each action type is a data asset in the Project, not a code switch-case. Adding an action means creating an SO and a state class — nothing else changes.
+- **ScriptableObject action definitions**: Each action type is a data asset in the Project. Adding an action means creating an SO and a state class.
 - **Static event bus**: Systems communicate without direct references through `NPCEventBus`.
 
 ### Top-level component layout (per NPC GameObject)
@@ -42,9 +42,9 @@ NPC GameObject
 ├── NavMeshAgent           — used by GoToState for pathfinding
 ├── Animator               — driven by action states (Blend float, triggers)
 ├── IKController           — bridge to IKLookAt / IkLegTurning / IKGrab
-├── IKLookAt               — head/neck tracking (DO NOT modify)
-├── IkLegTurning           — procedural foot placement (DO NOT modify)
-└── IKGrab                 — object grab IK blending (DO NOT modify)
+├── IKLookAt               — head/neck tracking 
+├── IkLegTurning           — procedural foot placement 
+└── IKGrab                 — object grab IK blending 
 ```
 
 ### Top-level component layout (Manager GameObject)

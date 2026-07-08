@@ -255,6 +255,16 @@ namespace LAS
             DrawStatus();
             Space(8);
 
+            using (new EditorGUI.DisabledScope(_isGenerating))
+            {
+                var prev = GUI.backgroundColor;
+                GUI.backgroundColor = _isGenerating ? Color.grey : new Color(0.25f, 0.75f, 0.35f);
+                if (GUILayout.Button(_isGenerating ? "  Generating…  " : "  GENERATE SCENARIO JSON  ", GUILayout.Height(34)))
+                    TryGenerate();
+                GUI.backgroundColor = prev;
+            }
+            Space(8);
+
             EditorGUILayout.EndScrollView();
         }
 
@@ -270,15 +280,6 @@ namespace LAS
                 "Describe your scenario idea, fill in the details you want, and let an AI write the complete scenario JSON for you.",
                 EditorStyles.wordWrappedMiniLabel);
             Space(6);
-
-            using (new EditorGUI.DisabledScope(_isGenerating))
-            {
-                var prev = GUI.backgroundColor;
-                GUI.backgroundColor = _isGenerating ? Color.grey : new Color(0.25f, 0.75f, 0.35f);
-                if (GUILayout.Button(_isGenerating ? "  Generating…  " : "  GENERATE SCENARIO JSON  ", GUILayout.Height(34)))
-                    TryGenerate();
-                GUI.backgroundColor = prev;
-            }
         }
 
         // ═════════════════════════════════════════════════════════════

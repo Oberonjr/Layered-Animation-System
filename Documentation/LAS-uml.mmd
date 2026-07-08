@@ -1,0 +1,551 @@
+classDiagram
+
+%% ============================================================
+%%  LLM PROVIDER LAYER
+%% ============================================================
+
+class LLMProviderBase {
+    <<abstract ScriptableObject>>
+    #string modelName
+    +bool IsConnected
+    +Connect(Action~bool,string~) IEnumerator*
+    +SendRequest(LLMRequest, LLMGenerationOptions, Action~string~) IEnumerator*
+    +SendActionRequest(LLMRequest, LLMGenerationOptions, Action~string~) IEnumerator
+    +Interrupt() void*
+    +FetchModels(Action~string[]~) IEnumerator
+}
+
+class ClaudeProvider {
+    <<ScriptableObject>>
+    -string apiKeyName
+    -string actionModelName
+    +SendRequest() IEnumerator
+    +SendActionRequest() IEnumerator
+    -SendWithModel(string model, ...) IEnumerator
+    +Interrupt() void
+}
+
+class OllamaProvider {
+    <<ScriptableObject>>
+    -string baseUrl
+    -int selectedModelIndex
+    -int actionModelIndex
+    +FetchModels() IEnumerator
+    +SendRequest() IEnumerator
+    +SendActionRequest() IEnumerator
+    +Interrupt() void
+}
+
+class OpenAIChatProvider {
+    <<ScriptableObject>>
+    -ProviderPreset preset
+    -string apiKeyName
+    -string actionModelName
+    +SendRequest() IEnumerator
+    +SendActionRequest() IEnumerator
+    +Interrupt() void
+}
+
+class ApiKeyStore {
+    <<static utility>>
+    +GetKey(string keyName) string$
+    +HasKey(string keyName) bool$
+    +Invalidate() void$
+}
+
+class LLMRequest {
+    <<data>>
+    +string systemContent
+    +LLMMessage[] history
+    +string userContent
+}
+
+class LLMMessage {
+    <<data>>
+    +string role
+    +string content
+}
+
+class LLMGenerationOptions {
+    <<Serializable>>
+    +float temperature
+    +float topP
+    +int maxTokens
+    +float repeatPenalty
+}
+
+LLMProviderBase <|-- ClaudeProvider
+LLMProviderBase <|-- OllamaProvider
+LLMProviderBase <|-- OpenAIChatProvider
+LLMRequest "1" o-- "*" LLMMessage
+LLMProviderBase ..> LLMRequest : uses
+LLMProviderBase ..> LLMGenerationOptions : uses
+ClaudeProvider ..> ApiKeyStore : reads API key
+OpenAIChatProvider ..> ApiKeyStore : reads API key
+
+
+%% ============================================================
+%%  SCENARIO & SHARED DATA STRUCTURES
+%% ============================================================
+
+class ScenarioConfig {
+    <<Serializable>>
+    +ScenarioInfo scenario
+    +CharacterInfo[] characters
+    +PlayerCharacterInfo player_character
+    +ProgressionStep[] required_progression_steps
+    +SystemInstructions system_instructions
+    +ConversationInitialization conversation_initialization
+}
+
+class ConversationTurn {
+    <<Serializable struct>>
+    +SpeakerType speakerType
+    +int speakerIndex
+    +int targetIndex
+    +string content
+    +FromPlayer(string, int) ConversationTurn$
+    +FromNPC(int, string, int) ConversationTurn$
+    +FromSystem(string, int) ConversationTurn$
+    +FromRoom(string, int) ConversationTurn$
+}
+
+class NPCResponse {
+    <<Serializable>>
+    +int npc_index
+    +string dialogue
+    +string action_key
+    +string action_target
+    +string action_secondary_target
+    +string internal_thought
+}
+
+class NPCActionSequence {
+    <<Serializable>>
+    +NPCActionStep[] actions
+}
+
+class NPCActionStep {
+    <<Serializable>>
+    +string action_key
+    +string action_target
+    +string action_secondary_target
+}
+
+class NPCActionCommand {
+    <<Serializable>>
+    +int npc_index
+    +string action_key
+    +string action_target
+    +string action_secondary_target
+}
+
+NPCActionSequence "1" *-- "*" NPCActionStep
+
+
+%% ============================================================
+%%  NPC CORE COMPONENTS
+%% ============================================================
+
+class NPCController {
+    <<MonoBehaviour>>
+    +string npcName
+    +List~string~ npcAliases
+    +string characterRole
+    +string characterDescription
+    +int AssignedIndex
+    +AssignIndex(int index) void
+    +AssignCharacterData(string, string, string) void
+    +SetSpeaking(bool speaking) void
+}
+
+class NPCEventBus {
+    <<static event hub>>
+    +OnNPCRegistered$ Action~NPCController~
+    +OnNPCUnregistered$ Action~NPCController~
+    +OnNPCStartedSpeaking$ Action~int,string~
+    +OnNPCFinishedSpeaking$ Action~int~
+    +OnPlayerMessage$ Action~string~
+    +OnActionImpossible$ Action~int,string~
+    +RegisterNPC(NPCController)$
+    +BroadcastNPCStartedSpeaking(int, string)$
+    +BroadcastPlayerMessage(string)$
+    +BroadcastActionImpossible(int, string)$
+}
+
+
+%% ============================================================
+%%  INSPECTOR SETTINGS (serializable config objects)
+%% ============================================================
+
+class ConversationPromptsSettings {
+    <<Serializable>>
+    +bool overrideNPCConversationPrompt
+    +string npcConversationPrompt
+    +bool overrideIdlePrompt
+    +string idlePrompt
+}
+
+class RulesAndGuidelinesSettings {
+    <<Serializable>>
+    +bool overrideCriticalRules
+    +string criticalRules
+    +bool overrideBehaviorGuidelines
+    +string behaviorGuidelines
+}
+
+class StreamingSettings {
+    <<Serializable>>
+    +StreamingOutputSettings output
+    +StreamingAdaptiveSettings adaptiveSpeed
+    +StreamingPacingSettings pacing
+}
+
+
+%% ============================================================
+%%  NPC MANAGER + PROMPT/RESPONSE PIPELINE
+%% ============================================================
+
+class NPCManager {
+    <<MonoBehaviour>>
+    -LLMProviderBase llmProvider
+    -LLMGenerationOptions dialogueOptions
+    -LLMGenerationOptions actionOptions
+    -StreamingSettings streaming
+    -ConversationPromptsSettings conversationPrompts
+    -RulesAndGuidelinesSettings rulesAndGuidelines
+    -List~NPCController~ registeredNPCs
+    -int contextHistoryLimit
+    -bool includeProgressionContext
+    +bool IsProcessing
+    +Initialize() void
+    +GetNPCByIndex(int) NPCController
+    +GetRecentMessages(int) List~ChatMessage~
+}
+
+class NPCPromptBuilder {
+    -ScenarioConfig _scenario
+    -List~NPCController~ _npcs
+    -List~ChatMessage~ _history
+    -NPCActionDispatcher _dispatcher
+    -ConversationPromptsSettings _conversationPrompts
+    -RulesAndGuidelinesSettings _rulesAndGuidelines
+    -int _historyLimit
+    +int CurrentProgressionStep
+    +BuildDialogueRequest(ConversationTurn) LLMRequest
+    +BuildActionClassificationRequest(int, ConversationTurn, string, string) LLMRequest
+    +GetEffectiveNPCConversationPrompt() string
+}
+
+class NPCResponseParser {
+    <<static utility>>
+    +TryParseDialogueResponse(string, ..., out NPCResponse) bool$
+    +TryParseActionClassificationResponse(string, out NPCActionSequence) bool$
+}
+
+NPCManager "1" *-- "1" NPCPromptBuilder : owns
+NPCManager "1" o-- "1" LLMProviderBase : serialized ref
+NPCManager "1" o-- "1" StreamingSettings
+NPCManager "1" o-- "1" ConversationPromptsSettings
+NPCManager "1" o-- "1" RulesAndGuidelinesSettings
+NPCManager "1" o-- "*" NPCController : registered list
+NPCManager ..> NPCEventBus : subscribes to events
+NPCManager ..> NPCResponseParser : parses LLM output
+NPCManager ..> NPCActionDispatcher : dispatches actions
+NPCPromptBuilder o-- "1" ScenarioConfig
+NPCPromptBuilder o-- "1" NPCActionDispatcher : reads vocabulary
+NPCResponseParser ..> NPCResponse : produces
+NPCResponseParser ..> NPCActionSequence : produces
+
+
+%% ============================================================
+%%  CONVERSATION FLOW + UI
+%% ============================================================
+
+class ConversationFlowController {
+    <<MonoBehaviour>>
+    +bool enableAutoConversation
+    +float npcFollowUpProbability
+    +int maxConsecutiveNPCMessages
+    +float playerIdleTimeBeforePrompt
+    +bool useContextualDecisions
+    +bool IsProcessing
+    +ForceNPCResponse() void
+    +PauseAutoConversation() void
+    +ResumeAutoConversation() void
+    +ResetConversationFlow() void
+}
+
+class ChatMessage {
+    <<MonoBehaviour UI>>
+    +string speaker
+    +string message
+    +MessageType type
+    +Initialize(string, string, MessageType) void
+    +InitializeWithColor(string, string, MessageType, Color) void
+    +UpdateText(string newMessage) void
+}
+
+ConversationFlowController ..> NPCEventBus : subscribes and fires
+ConversationFlowController ..> NPCManager : triggers responses
+
+
+%% ============================================================
+%%  ACTION TARGET SYSTEM
+%% ============================================================
+
+class IActionTarget {
+    <<interface>>
+    +string TargetName
+    +TargetType Type
+    +Transform Transform
+}
+
+class ActionTarget {
+    <<abstract MonoBehaviour>>
+    +string customName
+    +List~string~ aliases
+    +List~string~ llmAliases
+    +GetAllAliases() IEnumerable~string~
+}
+
+class NPCTarget {
+    <<MonoBehaviour>>
+    +TargetType Type
+    +string TargetName
+}
+
+class PlayerTarget {
+    <<MonoBehaviour>>
+    +TargetType Type
+}
+
+class InteractableItem {
+    <<MonoBehaviour>>
+    +bool isHeld
+    +string heldByNPC
+    +string currentLocation
+    +GetStateDescription() string
+}
+
+class LocationTarget {
+    <<MonoBehaviour>>
+    +List~string~ occupants
+    +SerializedDictionary~InteractableItem,ItemSlot~ itemSlots
+    +GetStateDescription() string
+    +AddOccupant(string) void
+    +RemoveOccupant(string) void
+    +AddItem(string) void
+    +RemoveItem(string) void
+}
+
+class ItemSlot {
+    <<MonoBehaviour>>
+    +InteractableItem acceptedItem
+    +bool IsOccupied
+    +InteractableItem PlacedItem
+    +OnItemPlaced Action~ItemSlot,InteractableItem~
+    +OnItemRemoved Action~ItemSlot,InteractableItem~
+    +TryPlaceItem(InteractableItem) bool
+    +RemoveItem() InteractableItem
+}
+
+class NPCActionTargetRegistry {
+    <<MonoBehaviour Singleton>>
+    +Instance$ NPCActionTargetRegistry
+    +Register(IActionTarget) void
+    +Unregister(IActionTarget) void
+    +RegisterAliases(IActionTarget, IEnumerable~string~) void
+    +Resolve(string targetName) Transform
+    +GetByPrimaryName(string) IActionTarget
+    +GetTargetsByType(TargetType) IEnumerable~IActionTarget~
+    +GetAllTargets() IEnumerable~IActionTarget~
+}
+
+class AliasGenerator {
+    <<static utility>>
+    +GenerateAll(NPCActionTargetRegistry, LLMProviderBase, AliasGeneratorConfig, string, MonoBehaviour) IEnumerator$
+}
+
+IActionTarget <|.. ActionTarget
+ActionTarget <|-- NPCTarget
+ActionTarget <|-- PlayerTarget
+ActionTarget <|-- InteractableItem
+ActionTarget <|-- LocationTarget
+LocationTarget "1" o-- "*" ItemSlot
+NPCActionTargetRegistry o-- "*" IActionTarget : indexes all
+AliasGenerator ..> NPCActionTargetRegistry : populates aliases
+AliasGenerator ..> LLMProviderBase : uses to generate aliases
+
+
+%% ============================================================
+%%  ACTION DEFINITION & DISPATCH
+%% ============================================================
+
+class NPCActionDefinition {
+    <<ScriptableObject>>
+    +string actionKey
+    +string displayName
+    +string llmDescription
+    +bool requiresTarget
+    +bool requiresSecondaryTarget
+    +TargetType[] validTargetTypes
+    +bool requiresApproach
+    +ApproachRange approachRangeType
+    +Color editorColor
+    +IsValidTargetType(TargetType) bool
+    +MakeState(Transform primary, Transform secondary) NPCActionState
+}
+
+class NPCActionDispatcher {
+    <<MonoBehaviour Singleton>>
+    +Instance$ NPCActionDispatcher
+    -List~NPCActionDefinition~ actionDefinitions
+    +Dispatch(NPCActionCommand, List~NPCController~) void
+    +DispatchSequence(int, NPCActionSequence, List~NPCController~) void
+    +DispatchDirect(NPCActionDefinition, NPCBehaviourController, Transform, Transform) void
+    +BuildActionVocabularyPrompt() string
+    +BuildCompactActionVocabulary() string
+    +GetActiveActions() IEnumerable~NPCActionDefinition~
+}
+
+NPCActionDispatcher "1" o-- "*" NPCActionDefinition : wired in inspector
+NPCActionDispatcher ..> NPCActionTargetRegistry : resolves target names
+NPCActionDispatcher ..> NPCBehaviourController : calls GoTo / action methods
+NPCActionDefinition ..> NPCActionState : creates via MakeState()
+
+
+%% ============================================================
+%%  FSM SYSTEM
+%% ============================================================
+
+class INPCState {
+    <<interface>>
+    +EnterState(NPCBehaviourContext ctx) void
+    +UpdateState(NPCBehaviourContext ctx) bool
+    +ExitState(NPCBehaviourContext ctx) void
+}
+
+class NPCActionState {
+    <<abstract>>
+    #NPCActionDefinition definition
+    +EnterState(NPCBehaviourContext ctx) void
+    +UpdateState(NPCBehaviourContext ctx) bool
+    +ExitState(NPCBehaviourContext ctx) void
+}
+
+class GoToState {
+    -Transform _target
+    -ApproachRange _rangeType
+    -float _startTime
+    +EnterState(NPCBehaviourContext ctx) void
+    +UpdateState(NPCBehaviourContext ctx) bool
+    +ExitState(NPCBehaviourContext ctx) void
+}
+
+class NPCFSM {
+    -Queue~INPCState~ _queue
+    -INPCState _currentState
+    +bool IsRunning
+    +int QueuedCount
+    +Enqueue(INPCState state) void
+    +Start() void
+    +Interrupt(INPCState state) void
+    +CancelAll() void
+    +Update() void
+}
+
+class NPCBehaviourContext {
+    +NavMeshAgent Agent
+    +Animator Animator
+    +NPCController Controller
+    +IKController IKController
+    +Transform ItemSlot
+    +Transform IdlePosition
+    +float ArrivalDistance
+    +float PickupRange
+    +float HandOverRange
+    +HandoffMode PlayerHandoffMode
+    +GameObject HeldObject
+    +bool IsOffering
+    +OnArrivedAtTarget Action~Transform~
+    +OnPickedUpObject Action~GameObject~
+    +OnHandedObject Action~GameObject~
+    +OnReturnedToIdle Action
+    +GetPlayerTransform() Transform
+}
+
+class NPCBehaviourController {
+    <<MonoBehaviour>>
+    -IKLookAt lookAtScript
+    -IKController ikController
+    -Animator animator
+    -Transform idlePosition
+    +NPCBehaviourContext Context
+    +NPCFSM FSM
+    +bool IsHoldingObject
+    +bool IsOffering
+    +bool IsMoving
+    +bool IsExecutingQueue
+    +GoTo(Transform) void
+    +PickUp(Transform) void
+    +PutDown(Transform) void
+    +HandToPlayer() void
+    +HandToNPC(NPCBehaviourController) void
+    +GrabFrom(NPCBehaviourController) void
+    +LookAt(Transform) void
+    +ReturnToIdle() void
+    +StartQueuedActions() void
+    +CancelQueue() void
+}
+
+INPCState <|.. NPCActionState
+NPCActionState <|-- GoToState
+NPCBehaviourController "1" *-- "1" NPCFSM
+NPCBehaviourController "1" *-- "1" NPCBehaviourContext
+NPCBehaviourController "1" o-- "1" NPCController : requires component
+NPCFSM "1" o-- "*" INPCState : runs states
+NPCBehaviourContext "1" o-- "1" NPCController
+NPCActionState ..> NPCBehaviourContext : receives on tick
+
+
+%% ============================================================
+%%  IK / ANIMATION (lightweight references)
+%% ============================================================
+
+class IKController {
+    <<MonoBehaviour>>
+    +bool isLookingAtTarget
+    +bool hasGrabbed
+    +SetLookAtTarget(Transform) void
+    +ClearLookAtTarget() void
+    +EnableLegIK(bool) void
+    +SetGrabTarget(Transform) void
+    +Grab() void
+    +PutDown() void
+}
+
+class IKLookAt {
+    <<MonoBehaviour>>
+    +bool canStartAnim
+    +bool isLookingAtTarget
+    +LookAt(Transform) void
+    +LookAtContinuous(Transform) bool
+    +ClearTarget() void
+    +EnableLegIK(bool) void
+}
+
+class IKGrab {
+    <<MonoBehaviour>>
+    +Transform grabTarget
+    +OnGrabbed UnityEvent
+    +SetTarget(Transform) void
+    +GrabObject() void
+    +PutDownObject() void
+}
+
+IKController "1" *-- "1" IKLookAt
+IKController "1" *-- "1" IKGrab
+NPCBehaviourContext "1" o-- "1" IKController : exposes to FSM states
+NPCBehaviourController ..> IKController : serialized ref (wires context)
+NPCBehaviourController ..> IKLookAt : serialized ref (look-at shortcut)

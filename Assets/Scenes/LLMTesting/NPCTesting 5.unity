@@ -1241,6 +1241,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Test
       objectReference: {fileID: 0}
+    - target: {fileID: 7013340240363936597, guid: 602d0da4d0458254bbe4c16daca412ee, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8593945416548423049, guid: 602d0da4d0458254bbe4c16daca412ee, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
@@ -6044,15 +6048,15 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 4837132738931535046, guid: dc8f58e9c260a29449a9d35a4848ffa9, type: 3}
       propertyPath: m_AnchorMax.x
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4837132738931535046, guid: dc8f58e9c260a29449a9d35a4848ffa9, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4837132738931535046, guid: dc8f58e9c260a29449a9d35a4848ffa9, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: -17
       objectReference: {fileID: 0}
     - target: {fileID: 5256145280788253586, guid: dc8f58e9c260a29449a9d35a4848ffa9, type: 3}
       propertyPath: m_Name
@@ -6566,6 +6570,8 @@ MonoBehaviour:
     m_RotationOrder: 4
   rotationSpeed: 810
   returnRotationSpeed: 10
+  useConstantAngle: 1
+  constantAngle: 2
   accelerationTime: 0.2
   enableLegsThreshold: 0.5
   testTarget: {fileID: 0}
@@ -7670,6 +7676,8 @@ MonoBehaviour:
     m_RotationOrder: 4
   rotationSpeed: 1440
   returnRotationSpeed: 10
+  useConstantAngle: 1
+  constantAngle: 2
   accelerationTime: 0.2
   enableLegsThreshold: 0.5
   testTarget: {fileID: 0}
